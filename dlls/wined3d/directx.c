@@ -430,6 +430,7 @@ static const struct wined3d_gpu_description gpu_description_table[] =
     {HW_VENDOR_NVIDIA,     CARD_NVIDIA_TITANX_PASCAL,      "NVIDIA TITAN X (Pascal)",          DRIVER_NVIDIA_GEFORCE8,  12288},
     {HW_VENDOR_NVIDIA,     CARD_NVIDIA_TITANV,             "NVIDIA TITAN V",                   DRIVER_NVIDIA_GEFORCE8,  12288},
     {HW_VENDOR_NVIDIA,     CARD_NVIDIA_GEFORCE_GTX1650SUPER,"NVIDIA GeForce GTX 1650 SUPER",   DRIVER_NVIDIA_GEFORCE8,  4096},
+    {HW_VENDOR_NVIDIA,     CARD_NVIDIA_GEFORCE_GTX1660SUPER,"NVIDIA GeForce GTX 1660 SUPER",   DRIVER_NVIDIA_GEFORCE8,  6144},
     {HW_VENDOR_NVIDIA,     CARD_NVIDIA_GEFORCE_GTX1660TI,  "NVIDIA GeForce GTX 1660 Ti",       DRIVER_NVIDIA_GEFORCE8,  6144},
     {HW_VENDOR_NVIDIA,     CARD_NVIDIA_GEFORCE_RTX2060,    "NVIDIA GeForce RTX 2060",          DRIVER_NVIDIA_GEFORCE8,  6144},
     {HW_VENDOR_NVIDIA,     CARD_NVIDIA_GEFORCE_RTX2070,    "NVIDIA GeForce RTX 2070",          DRIVER_NVIDIA_GEFORCE8,  8192},
@@ -916,35 +917,36 @@ HRESULT CDECL wined3d_register_software_device(struct wined3d *wined3d, void *in
     return WINED3D_OK;
 }
 
+static BOOL CALLBACK enum_monitor_proc(HMONITOR monitor, HDC hdc, RECT *rect, LPARAM lparam)
+{
+    struct wined3d_output_desc *desc = (struct wined3d_output_desc *)lparam;
+    MONITORINFOEXW monitor_info;
+
+    monitor_info.cbSize = sizeof(monitor_info);
+    if (GetMonitorInfoW(monitor, (MONITORINFO *)&monitor_info) &&
+            !lstrcmpiW(desc->device_name, monitor_info.szDevice))
+    {
+        desc->monitor = monitor;
+        desc->desktop_rect = monitor_info.rcMonitor;
+        desc->attached_to_desktop = TRUE;
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 HRESULT CDECL wined3d_output_get_desc(const struct wined3d_output *output,
         struct wined3d_output_desc *desc)
 {
-    enum wined3d_display_rotation rotation;
-    const struct wined3d_adapter *adapter;
     struct wined3d_display_mode mode;
-    HMONITOR monitor;
-    HRESULT hr;
 
     TRACE("output %p, desc %p.\n", output, desc);
 
-    adapter = output->adapter;
-    if (!(monitor = MonitorFromPoint(adapter->monitor_position, MONITOR_DEFAULTTOPRIMARY)))
-        return WINED3DERR_INVALIDCALL;
-
-    if (FAILED(hr = wined3d_output_get_display_mode(output, &mode, &rotation)))
-        return hr;
-
+    memset(desc, 0, sizeof(*desc));
     desc->ordinal = output->ordinal;
-    memcpy(desc->device_name, adapter->device_name, sizeof(desc->device_name));
-    SetRect(&desc->desktop_rect, 0, 0, mode.width, mode.height);
-    OffsetRect(&desc->desktop_rect, adapter->monitor_position.x, adapter->monitor_position.y);
-    /* FIXME: We should get this from EnumDisplayDevices() when the adapters
-     * are created. */
-    desc->attached_to_desktop = TRUE;
-    desc->rotation = rotation;
-    desc->monitor = monitor;
-
-    return WINED3D_OK;
+    lstrcpyW(desc->device_name, output->device_name);
+    EnumDisplayMonitors(NULL, NULL, enum_monitor_proc, (LPARAM)desc);
+    return wined3d_output_get_display_mode(output, &mode, &desc->rotation);
 }
 
 /* FIXME: GetAdapterModeCount and EnumAdapterModes currently only returns modes
@@ -1389,17 +1391,6 @@ HRESULT CDECL wined3d_adapter_get_identifier(const struct wined3d_adapter *adapt
     wined3d_copy_name(identifier->driver, adapter->driver_info.name, identifier->driver_size);
     wined3d_copy_name(identifier->description, adapter->driver_info.description, identifier->description_size);
 
-    /* Note that d3d8 doesn't supply a device name. */
-    if (identifier->device_name_size)
-    {
-        if (!WideCharToMultiByte(CP_ACP, 0, adapter->device_name, -1, identifier->device_name,
-                identifier->device_name_size, NULL, NULL))
-        {
-            ERR("Failed to convert device name, last error %#x.\n", GetLastError());
-            goto fail;
-        }
-    }
-
     identifier->driver_version.u.HighPart = adapter->driver_info.version_high;
     identifier->driver_version.u.LowPart = adapter->driver_info.version_low;
     identifier->vendor_id = adapter->driver_info.vendor;
@@ -1441,10 +1432,6 @@ HRESULT CDECL wined3d_adapter_get_identifier(const struct wined3d_adapter *adapt
     wined3d_mutex_unlock();
 
     return WINED3D_OK;
-
-fail:
-    wined3d_mutex_unlock();
-    return WINED3DERR_INVALIDCALL;
 }
 
 HRESULT CDECL wined3d_output_get_raster_status(const struct wined3d_output *output,

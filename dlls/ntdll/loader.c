@@ -131,6 +131,7 @@ static LIST_ENTRY hash_table[HASH_MAP_SIZE];
 typedef struct _wine_modref
 {
     LDR_MODULE            ldr;
+    ULONG                 initial_flags;
     dev_t                 dev;
     ino_t                 ino;
     int                   alloc_deps;
@@ -195,12 +196,6 @@ static inline void *get_rva( HMODULE module, DWORD va )
 static inline BOOL contains_path( LPCWSTR name )
 {
     return ((*name && (name[1] == ':')) || strchrW(name, '/') || strchrW(name, '\\'));
-}
-
-/* convert from straight ASCII to Unicode without depending on the current codepage */
-static inline void ascii_to_unicode( WCHAR *dst, const char *src, size_t len )
-{
-    while (len--) *dst++ = (unsigned char)*src++;
 }
 
 static WCHAR *strcasestrW( const WCHAR *str, const WCHAR *sub )
@@ -561,15 +556,18 @@ static WINE_MODREF *get_modref( HMODULE hmod )
 static WINE_MODREF *find_basename_module( LPCWSTR name )
 {
     PLIST_ENTRY mark, entry;
+    UNICODE_STRING name_str;
 
-    if (cached_modref && !strcmpiW( name, cached_modref->ldr.BaseDllName.Buffer ))
+    RtlInitUnicodeString( &name_str, name );
+
+    if (cached_modref && RtlEqualUnicodeString( &name_str, &cached_modref->ldr.BaseDllName, TRUE ))
         return cached_modref;
 
     mark = &hash_table[hash_basename(name)];
     for (entry = mark->Flink; entry != mark; entry = entry->Flink)
     {
         LDR_MODULE *mod = CONTAINING_RECORD(entry, LDR_MODULE, HashLinks);
-        if (!strcmpiW( name, mod->BaseDllName.Buffer ))
+        if (RtlEqualUnicodeString( &name_str, &mod->BaseDllName, TRUE ))
         {
             cached_modref = CONTAINING_RECORD(mod, WINE_MODREF, ldr);
             return cached_modref;
@@ -1021,7 +1019,7 @@ static BOOL is_dll_native_subsystem( LDR_MODULE *mod, const IMAGE_NT_HEADERS *nt
             DWORD len = strlen(name);
             if (len * sizeof(WCHAR) >= sizeof(buffer)) continue;
             ascii_to_unicode( buffer, name, len + 1 );
-            if (!strcmpiW( buffer, ntdllW ) || !strcmpiW( buffer, kernel32W ))
+            if (!wcsicmp( buffer, ntdllW ) || !wcsicmp( buffer, kernel32W ))
             {
                 TRACE( "%s imports %s, assuming not native\n", debugstr_w(filename), debugstr_w(buffer) );
                 return FALSE;
@@ -1271,6 +1269,8 @@ static WINE_MODREF *alloc_module( HMODULE hModule, const UNICODE_STRING *nt_name
             wm->ldr.EntryPoint = (char *)hModule + nt->OptionalHeader.AddressOfEntryPoint;
     }
 
+    wm->initial_flags = wm->ldr.Flags;
+
     InsertTailList(&NtCurrentTeb()->Peb->LdrData->InLoadOrderModuleList,
                    &wm->ldr.InLoadOrderModuleList);
     InsertTailList(&NtCurrentTeb()->Peb->LdrData->InMemoryOrderModuleList,
@@ -1386,9 +1386,9 @@ static NTSTATUS MODULE_InitDLL( WINE_MODREF *wm, UINT reason, LPVOID lpReserved 
 
     /* Skip calls for modules loaded with special load flags */
 
-    if (wm->ldr.Flags & LDR_DONT_RESOLVE_REFS) return STATUS_SUCCESS;
+    if (wm->initial_flags & LDR_DONT_RESOLVE_REFS) return STATUS_SUCCESS;
     if (wm->ldr.TlsIndex != -1) call_tls_callbacks( wm->ldr.BaseAddress, reason );
-    if (!entry || !(wm->ldr.Flags & LDR_IMAGE_IS_DLL)) return STATUS_SUCCESS;
+    if (!entry || !(wm->initial_flags & LDR_IMAGE_IS_DLL)) return STATUS_SUCCESS;
 
     memset( mod_name, 0, sizeof(mod_name) );
 
@@ -1480,6 +1480,9 @@ static NTSTATUS process_attach( WINE_MODREF *wm, LPVOID lpReserved )
     wm->ldr.Flags |= LDR_LOAD_IN_PROGRESS;
     if (lpReserved) wm->ldr.LoadCount = -1;  /* pin it if imported by the main exe */
     if (wm->ldr.ActivationContext) RtlActivateActivationContext( 0, wm->ldr.ActivationContext, &cookie );
+
+    /* The flags can be modified by DLL dependencies  */
+    wm->initial_flags = wm->ldr.Flags;
 
     /* Recursively attach all DLLs this one depends on */
     for ( i = 0; i < wm->nDeps; i++ )
@@ -1999,7 +2002,7 @@ static BOOL get_builtin_fullname( UNICODE_STRING *nt_name, const UNICODE_STRING 
         p++;
         for (i = 0; i < len; i++)
             if (tolowerW(p[i]) != tolowerW( (WCHAR)filename[i]) ) break;
-        if (i == len && (!p[len] || !strcmpiW( p + len, soW )))
+        if (i == len && (!p[len] || !wcsicmp( p + len, soW )))
         {
             /* the filename matches, use path as the full path */
             len += p - path->Buffer;
@@ -2449,7 +2452,7 @@ static NTSTATUS get_dll_load_path_search_flags( LPCWSTR module, DWORD flags, WCH
     if (flags & LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR)
     {
         DWORD type = RtlDetermineDosPathNameType_U( module );
-        if (type != ABSOLUTE_DRIVE_PATH && type != ABSOLUTE_PATH)
+        if (type != ABSOLUTE_DRIVE_PATH && type != ABSOLUTE_PATH && type != DEVICE_PATH)
             return STATUS_INVALID_PARAMETER;
         mod_end = get_module_path_end( module );
         len += (mod_end - module) + 1;
@@ -3138,10 +3141,12 @@ static NTSTATUS find_actctx_dll( LPCWSTR libname, LPWSTR *fullname )
 
     if ((p = strrchrW( info->lpAssemblyManifestPath, '\\' )))
     {
-        DWORD dirlen = info->ulAssemblyDirectoryNameLength / sizeof(WCHAR);
-
+        DWORD len, dirlen = info->ulAssemblyDirectoryNameLength / sizeof(WCHAR);
         p++;
-        if (!dirlen || strncmpiW( p, info->lpAssemblyDirectoryName, dirlen ) || strcmpiW( p + dirlen, dotManifestW ))
+        len = strlenW( p );
+        if (!dirlen || len <= dirlen ||
+            RtlCompareUnicodeStrings( p, dirlen, info->lpAssemblyDirectoryName, dirlen, TRUE ) ||
+            wcsicmp( p + dirlen, dotManifestW ))
         {
             /* manifest name does not match directory name, so it's not a global
              * windows/winsxs manifest; use the manifest directory name instead */
