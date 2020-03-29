@@ -1,4 +1,4 @@
-# Last proton_dist configuration - Sun 29 Mar 2020 10:35:23 AM CEST :
+# Last proton_dist configuration - Sun 29 Mar 2020 12:15:32 PM CEST :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
