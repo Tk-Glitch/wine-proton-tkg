@@ -131,7 +131,6 @@ static LIST_ENTRY hash_table[HASH_MAP_SIZE];
 typedef struct _wine_modref
 {
     LDR_MODULE            ldr;
-    ULONG                 initial_flags;
     dev_t                 dev;
     ino_t                 ino;
     int                   alloc_deps;
@@ -1269,8 +1268,6 @@ static WINE_MODREF *alloc_module( HMODULE hModule, const UNICODE_STRING *nt_name
             wm->ldr.EntryPoint = (char *)hModule + nt->OptionalHeader.AddressOfEntryPoint;
     }
 
-    wm->initial_flags = wm->ldr.Flags;
-
     InsertTailList(&NtCurrentTeb()->Peb->LdrData->InLoadOrderModuleList,
                    &wm->ldr.InLoadOrderModuleList);
     InsertTailList(&NtCurrentTeb()->Peb->LdrData->InMemoryOrderModuleList,
@@ -1386,9 +1383,9 @@ static NTSTATUS MODULE_InitDLL( WINE_MODREF *wm, UINT reason, LPVOID lpReserved 
 
     /* Skip calls for modules loaded with special load flags */
 
-    if (wm->initial_flags & LDR_DONT_RESOLVE_REFS) return STATUS_SUCCESS;
+    if (wm->ldr.Flags & LDR_DONT_RESOLVE_REFS) return STATUS_SUCCESS;
     if (wm->ldr.TlsIndex != -1) call_tls_callbacks( wm->ldr.BaseAddress, reason );
-    if (!entry || !(wm->initial_flags & LDR_IMAGE_IS_DLL)) return STATUS_SUCCESS;
+    if (!entry || !(wm->ldr.Flags & LDR_IMAGE_IS_DLL)) return STATUS_SUCCESS;
 
     memset( mod_name, 0, sizeof(mod_name) );
 
@@ -1480,9 +1477,6 @@ static NTSTATUS process_attach( WINE_MODREF *wm, LPVOID lpReserved )
     wm->ldr.Flags |= LDR_LOAD_IN_PROGRESS;
     if (lpReserved) wm->ldr.LoadCount = -1;  /* pin it if imported by the main exe */
     if (wm->ldr.ActivationContext) RtlActivateActivationContext( 0, wm->ldr.ActivationContext, &cookie );
-
-    /* The flags can be modified by DLL dependencies  */
-    wm->initial_flags = wm->ldr.Flags;
 
     /* Recursively attach all DLLs this one depends on */
     for ( i = 0; i < wm->nDeps; i++ )

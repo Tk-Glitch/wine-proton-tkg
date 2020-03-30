@@ -1,9 +1,9 @@
-# Last proton_dist configuration - Sun 29 Mar 2020 12:15:32 PM CEST :
+# Last proton_dist configuration - Mon 30 Mar 2020 10:48:16 AM CEST :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
 Wine (plain) version: 5.5.r0.g123c0543e0
-Using wine-staging patchset (version 5.5.r0.g18f71258)
+Using wine-staging patchset (version 5.5.r2.g7fe7d87f)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Using VKD3D for d3d12 translation
@@ -51,7 +51,6 @@ dxvk_config_dxgi_support.patch -- ( Add support for dxvk_config library to Wine'
 
 Applied your own patch D3D12CreateVersionedRootSignatureDeserializer.mypatch
 Applied your own patch D3D12SerializeVersionedRootSignature.mypatch
-Applied your own patch Do_not_fail_if_LDR_MODULE.Flags_is_modified.mypatch
 Applied your own patch FinalFantasyXVHack.mypatch
 Applied your own patch GNUTLShack.mypatch
 Applied your own patch amdags.mypatch
