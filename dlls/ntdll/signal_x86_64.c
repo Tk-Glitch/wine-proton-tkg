@@ -3326,6 +3326,16 @@ void signal_init_thread( TEB *teb )
 
 static void install_bpf(struct sigaction *sig_act)
 {
+    static int enable_seccomp = -1;
+
+    if (enable_seccomp == -1)
+        enable_seccomp = getenv("WINESECCOMP") && atoi(getenv("WINESECCOMP"));
+
+    if (!enable_seccomp)
+        return;
+
+    MESSAGE("wine: enabling seccomp syscall filters.\n");
+
 #ifdef HAVE_SECCOMP
     static struct sock_filter filter[] =
     {
@@ -4393,6 +4403,23 @@ void signal_exit_thread( int status )
 void signal_exit_process( int status )
 {
     call_thread_exit_func( status, exit );
+}
+
+/**********************************************************************
+ *           get_thread_ldt_entry
+ */
+NTSTATUS get_thread_ldt_entry( HANDLE handle, void *data, ULONG len, ULONG *ret_len )
+{
+    return STATUS_NOT_IMPLEMENTED;
+}
+
+/******************************************************************************
+ *           NtSetLdtEntries   (NTDLL.@)
+ *           ZwSetLdtEntries   (NTDLL.@)
+ */
+NTSTATUS WINAPI NtSetLdtEntries( ULONG sel1, LDT_ENTRY entry1, ULONG sel2, LDT_ENTRY entry2 )
+{
+    return STATUS_NOT_IMPLEMENTED;
 }
 
 /**********************************************************************

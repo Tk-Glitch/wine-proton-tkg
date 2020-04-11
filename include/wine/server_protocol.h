@@ -211,6 +211,9 @@ typedef __int64 timeout_t;
 #define TIMEOUT_INFINITE (((timeout_t)0x7fffffff) << 32 | 0xffffffff)
 
 
+typedef __int64 abstime_t;
+
+
 typedef struct
 {
     unsigned int debug_flags;
@@ -499,7 +502,7 @@ typedef union
         enum apc_type    type;
         int              __pad;
         client_ptr_t     func;
-        timeout_t        time;
+        abstime_t        time;
         client_ptr_t     arg;
     } timer;
     struct
@@ -1290,7 +1293,7 @@ struct select_request
     struct request_header __header;
     int          flags;
     client_ptr_t cookie;
-    timeout_t    timeout;
+    abstime_t    timeout;
     obj_handle_t prev_apc;
     /* VARARG(result,apc_result); */
     /* VARARG(data,select_op); */
@@ -1299,10 +1302,9 @@ struct select_request
 struct select_reply
 {
     struct reply_header __header;
-    timeout_t    timeout;
     apc_call_t   call;
     obj_handle_t apc_handle;
-    char __pad_60[4];
+    char __pad_52[4];
 };
 #define SELECT_ALERTABLE     1
 #define SELECT_INTERRUPTIBLE 2
@@ -7182,7 +7184,7 @@ union generic_reply
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 598
+#define SERVER_PROTOCOL_VERSION 599
 
 /* ### protocol_version end ### */
 

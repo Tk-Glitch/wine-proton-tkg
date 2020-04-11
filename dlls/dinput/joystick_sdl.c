@@ -124,10 +124,10 @@ static void find_sdldevs(void)
     SDL_Init(SDL_INIT_JOYSTICK|SDL_INIT_HAPTIC);
     SDL_JoystickEventState(SDL_ENABLE);
 
-    sdl_handle = wine_dlopen(SONAME_LIBSDL2, RTLD_NOW, NULL, 0);
+    sdl_handle = dlopen(SONAME_LIBSDL2, RTLD_NOW);
     if (sdl_handle) {
-        pSDL_JoystickGetProduct = wine_dlsym(sdl_handle, "SDL_JoystickGetProduct", NULL, 0);
-        pSDL_JoystickGetVendor = wine_dlsym(sdl_handle, "SDL_JoystickGetVendor", NULL, 0);
+        pSDL_JoystickGetProduct = dlsym(sdl_handle, "SDL_JoystickGetProduct");
+        pSDL_JoystickGetVendor = dlsym(sdl_handle, "SDL_JoystickGetVendor");
     }
 
     if(!pSDL_JoystickGetVendor){

@@ -54,7 +54,7 @@ extern int receive_fd( struct process *process );
 extern int send_client_fd( struct process *process, int fd, obj_handle_t handle );
 extern void read_request( struct thread *thread );
 extern void write_reply( struct thread *thread );
-extern unsigned int get_tick_count(void);
+extern timeout_t monotonic_counter(void);
 extern void open_master_socket(void);
 extern void close_master_socket( timeout_t timeout );
 extern void shutdown_master_socket(void);
@@ -65,6 +65,12 @@ extern int server_dir_fd, config_dir_fd;
 
 extern void trace_request(void);
 extern void trace_reply( enum request req, const union generic_reply *reply );
+
+/* get current tick count to return to client */
+static inline unsigned int get_tick_count(void)
+{
+    return monotonic_counter() / 10000;
+}
 
 /* get the request vararg data */
 static inline const void *get_req_data(void)
@@ -763,6 +769,7 @@ static const req_handler req_handlers[REQ_NB_REQUESTS] =
     (req_handler)req_esync_msgwait,
 };
 
+C_ASSERT( sizeof(abstime_t) == 8 );
 C_ASSERT( sizeof(affinity_t) == 8 );
 C_ASSERT( sizeof(apc_call_t) == 40 );
 C_ASSERT( sizeof(apc_param_t) == 8 );
@@ -985,10 +992,9 @@ C_ASSERT( FIELD_OFFSET(struct select_request, cookie) == 16 );
 C_ASSERT( FIELD_OFFSET(struct select_request, timeout) == 24 );
 C_ASSERT( FIELD_OFFSET(struct select_request, prev_apc) == 32 );
 C_ASSERT( sizeof(struct select_request) == 40 );
-C_ASSERT( FIELD_OFFSET(struct select_reply, timeout) == 8 );
-C_ASSERT( FIELD_OFFSET(struct select_reply, call) == 16 );
-C_ASSERT( FIELD_OFFSET(struct select_reply, apc_handle) == 56 );
-C_ASSERT( sizeof(struct select_reply) == 64 );
+C_ASSERT( FIELD_OFFSET(struct select_reply, call) == 8 );
+C_ASSERT( FIELD_OFFSET(struct select_reply, apc_handle) == 48 );
+C_ASSERT( sizeof(struct select_reply) == 56 );
 C_ASSERT( FIELD_OFFSET(struct create_event_request, access) == 12 );
 C_ASSERT( FIELD_OFFSET(struct create_event_request, manual_reset) == 16 );
 C_ASSERT( FIELD_OFFSET(struct create_event_request, initial_state) == 20 );
