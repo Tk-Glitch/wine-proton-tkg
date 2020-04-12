@@ -1,4 +1,4 @@
-# Last proton_dist configuration - Sat 11 Apr 2020 01:08:10 PM CEST :
+# Last proton_dist configuration - Sun 12 Apr 2020 11:35:52 AM CEST :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
@@ -7,6 +7,9 @@ Using wine-staging patchset (version 5.6.1.r0.g4c160ec8)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Using VKD3D for d3d12 translation
+
+e22bcac706be3afac67f4faac3aca79fd67c3d6f reverted
+( Don't build winepath with msvcrt to prevent breakage )
 
 2538b0100fbbe1223e7c18a52bade5cfe5f8d3e3 reverted
 ( FS hack unbreak revert applied )
