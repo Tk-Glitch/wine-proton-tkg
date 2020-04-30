@@ -505,6 +505,12 @@ typedef union
         abstime_t        time;
         client_ptr_t     arg;
     } timer;
+} user_apc_t;
+
+typedef union
+{
+    enum apc_type type;
+    user_apc_t    user;
     struct
     {
         enum apc_type    type;
@@ -1294,16 +1300,18 @@ struct select_request
     int          flags;
     client_ptr_t cookie;
     abstime_t    timeout;
+    data_size_t  size;
     obj_handle_t prev_apc;
     /* VARARG(result,apc_result); */
-    /* VARARG(data,select_op); */
-    char __pad_36[4];
+    /* VARARG(data,select_op,size); */
+    /* VARARG(context,context); */
 };
 struct select_reply
 {
     struct reply_header __header;
     apc_call_t   call;
     obj_handle_t apc_handle;
+    /* VARARG(context,context); */
     char __pad_52[4];
 };
 #define SELECT_ALERTABLE     1
@@ -2589,7 +2597,6 @@ struct queue_exception_event_request
     client_ptr_t  address;
     data_size_t   len;
     /* VARARG(params,uints64,len); */
-    /* VARARG(context,context); */
     char __pad_44[4];
 };
 struct queue_exception_event_reply
@@ -2609,7 +2616,6 @@ struct get_exception_status_request
 struct get_exception_status_reply
 {
     struct reply_header __header;
-    /* VARARG(context,context); */
 };
 
 
@@ -2969,14 +2975,14 @@ struct get_thread_context_request
     struct request_header __header;
     obj_handle_t handle;
     unsigned int flags;
-    int          suspend;
+    char __pad_20[4];
 };
 struct get_thread_context_reply
 {
     struct reply_header __header;
     int          self;
+    obj_handle_t handle;
     /* VARARG(context,context); */
-    char __pad_12[4];
 };
 
 
@@ -2985,9 +2991,7 @@ struct set_thread_context_request
 {
     struct request_header __header;
     obj_handle_t handle;
-    int          suspend;
     /* VARARG(context,context); */
-    char __pad_20[4];
 };
 struct set_thread_context_reply
 {
@@ -5824,19 +5828,6 @@ struct set_cursor_reply
 #define SET_CURSOR_NOCLIP 0x10
 
 
-
-struct update_rawinput_devices_request
-{
-    struct request_header __header;
-    /* VARARG(devices,rawinput_devices); */
-    char __pad_12[4];
-};
-struct update_rawinput_devices_reply
-{
-    struct reply_header __header;
-};
-
-
 struct get_rawinput_devices_request
 {
     struct request_header __header;
@@ -5851,26 +5842,13 @@ struct get_rawinput_devices_reply
 };
 
 
-struct get_suspend_context_request
+struct update_rawinput_devices_request
 {
     struct request_header __header;
+    /* VARARG(devices,rawinput_devices); */
     char __pad_12[4];
 };
-struct get_suspend_context_reply
-{
-    struct reply_header __header;
-    /* VARARG(context,context); */
-};
-
-
-
-struct set_suspend_context_request
-{
-    struct request_header __header;
-    /* VARARG(context,context); */
-    char __pad_12[4];
-};
-struct set_suspend_context_reply
+struct update_rawinput_devices_reply
 {
     struct reply_header __header;
 };
@@ -5884,6 +5862,23 @@ struct create_job_request
     /* VARARG(objattr,object_attributes); */
 };
 struct create_job_reply
+{
+    struct reply_header __header;
+    obj_handle_t handle;
+    char __pad_12[4];
+};
+
+
+
+struct open_job_request
+{
+    struct request_header __header;
+    unsigned int access;
+    unsigned int attributes;
+    obj_handle_t rootdir;
+    /* VARARG(name,unicode_str); */
+};
+struct open_job_reply
 {
     struct reply_header __header;
     obj_handle_t handle;
@@ -5973,23 +5968,6 @@ struct get_fsync_apc_idx_reply
 {
     struct reply_header __header;
     unsigned int shm_idx;
-    char __pad_12[4];
-};
-
-
-
-struct open_job_request
-{
-    struct request_header __header;
-    unsigned int access;
-    unsigned int attributes;
-    obj_handle_t rootdir;
-    /* VARARG(name,unicode_str); */
-};
-struct open_job_reply
-{
-    struct reply_header __header;
-    obj_handle_t handle;
     char __pad_12[4];
 };
 
@@ -6501,17 +6479,15 @@ enum request
     REQ_alloc_user_handle,
     REQ_free_user_handle,
     REQ_set_cursor,
-    REQ_update_rawinput_devices,
     REQ_get_rawinput_devices,
-    REQ_get_suspend_context,
-    REQ_set_suspend_context,
+    REQ_update_rawinput_devices,
     REQ_create_job,
+    REQ_open_job,
     REQ_create_fsync,
     REQ_open_fsync,
     REQ_get_fsync_idx,
     REQ_fsync_msgwait,
     REQ_get_fsync_apc_idx,
-    REQ_open_job,
     REQ_assign_job,
     REQ_process_in_job,
     REQ_set_job_limits,
@@ -6829,17 +6805,15 @@ union generic_request
     struct alloc_user_handle_request alloc_user_handle_request;
     struct free_user_handle_request free_user_handle_request;
     struct set_cursor_request set_cursor_request;
-    struct update_rawinput_devices_request update_rawinput_devices_request;
     struct get_rawinput_devices_request get_rawinput_devices_request;
-    struct get_suspend_context_request get_suspend_context_request;
-    struct set_suspend_context_request set_suspend_context_request;
+    struct update_rawinput_devices_request update_rawinput_devices_request;
     struct create_job_request create_job_request;
+    struct open_job_request open_job_request;
     struct create_fsync_request create_fsync_request;
     struct open_fsync_request open_fsync_request;
     struct get_fsync_idx_request get_fsync_idx_request;
     struct fsync_msgwait_request fsync_msgwait_request;
     struct get_fsync_apc_idx_request get_fsync_apc_idx_request;
-    struct open_job_request open_job_request;
     struct assign_job_request assign_job_request;
     struct process_in_job_request process_in_job_request;
     struct set_job_limits_request set_job_limits_request;
@@ -7155,17 +7129,15 @@ union generic_reply
     struct alloc_user_handle_reply alloc_user_handle_reply;
     struct free_user_handle_reply free_user_handle_reply;
     struct set_cursor_reply set_cursor_reply;
-    struct update_rawinput_devices_reply update_rawinput_devices_reply;
     struct get_rawinput_devices_reply get_rawinput_devices_reply;
-    struct get_suspend_context_reply get_suspend_context_reply;
-    struct set_suspend_context_reply set_suspend_context_reply;
+    struct update_rawinput_devices_reply update_rawinput_devices_reply;
     struct create_job_reply create_job_reply;
+    struct open_job_reply open_job_reply;
     struct create_fsync_reply create_fsync_reply;
     struct open_fsync_reply open_fsync_reply;
     struct get_fsync_idx_reply get_fsync_idx_reply;
     struct fsync_msgwait_reply fsync_msgwait_reply;
     struct get_fsync_apc_idx_reply get_fsync_apc_idx_reply;
-    struct open_job_reply open_job_reply;
     struct assign_job_reply assign_job_reply;
     struct process_in_job_reply process_in_job_reply;
     struct set_job_limits_reply set_job_limits_reply;
@@ -7184,7 +7156,7 @@ union generic_reply
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 599
+#define SERVER_PROTOCOL_VERSION 604
 
 /* ### protocol_version end ### */
 
