@@ -3341,16 +3341,6 @@ static int sc_seccomp(unsigned int operation, unsigned int flags, void *args)
 
 static void install_bpf(struct sigaction *sig_act)
 {
-    static int enable_seccomp = -1;
-
-    if (enable_seccomp == -1)
-        enable_seccomp = getenv("WINESECCOMP") && atoi(getenv("WINESECCOMP"));
-
-    if (!enable_seccomp)
-        return;
-
-    MESSAGE("wine: enabling seccomp syscall filters.\n");
-
 #ifdef HAVE_SECCOMP
 #   ifndef SECCOMP_FILTER_FLAG_SPEC_ALLOW
 #       define SECCOMP_FILTER_FLAG_SPEC_ALLOW (1UL << 2)
@@ -3368,8 +3358,17 @@ static void install_bpf(struct sigaction *sig_act)
        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP),
        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
     };
+    static int enable_seccomp = -1;
     struct sock_fprog prog;
     int ret;
+
+    if (enable_seccomp == -1)
+        enable_seccomp = getenv("WINESECCOMP") && atoi(getenv("WINESECCOMP"));
+
+    if (!enable_seccomp)
+        return;
+
+    MESSAGE("wine: enabling seccomp syscall filters.\n");
 
     memset(&prog, 0, sizeof(prog));
     prog.len = ARRAY_SIZE(filter);
@@ -3484,7 +3483,8 @@ static void set_int_reg( CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *ctx_pt
 
 static void set_float_reg( CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *ctx_ptr, int reg, M128A *val )
 {
-    *(&context->u.s.Xmm0 + reg) = *val;
+    /* Use a memcpy() to avoid issues if val is misaligned. */
+    memcpy(&context->u.s.Xmm0 + reg, val, sizeof(*val));
     if (ctx_ptr) ctx_ptr->u.FloatingContext[reg] = val;
 }
 

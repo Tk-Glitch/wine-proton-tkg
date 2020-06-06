@@ -1101,6 +1101,7 @@ HRESULT wined3d_device_set_implicit_swapchain(struct wined3d_device *device, str
     memset(device->state.fb.render_targets, 0, sizeof(device->state.fb.render_targets));
     if (FAILED(hr = device->adapter->adapter_ops->adapter_init_3d(device)))
         goto err_out;
+    device->d3d_initialized = TRUE;
 
     device_init_swapchain_state(device, swapchain);
 
@@ -1155,7 +1156,6 @@ static void device_free_blend_state(struct wine_rb_entry *entry, void *context)
 
 void wined3d_device_uninit_3d(struct wined3d_device *device)
 {
-    BOOL no3d = device->wined3d->flags & WINED3D_NO3D;
     struct wined3d_resource *resource, *cursor;
     struct wined3d_rendertarget_view *view;
     struct wined3d_texture *texture;
@@ -1163,7 +1163,7 @@ void wined3d_device_uninit_3d(struct wined3d_device *device)
 
     TRACE("device %p.\n", device);
 
-    if (!device->d3d_initialized && !no3d)
+    if (!device->d3d_initialized)
     {
         ERR("Called while 3D support was not initialised.\n");
         return;
@@ -1720,7 +1720,7 @@ static void resolve_depth_buffer(struct wined3d_device *device)
     if (!(dst_texture = state->textures[0]))
         return;
     dst_resource = &dst_texture->resource;
-    if (!(dst_resource->format_flags & WINED3DFMT_FLAG_DEPTH))
+    if (!dst_resource->format->depth_size)
         return;
     if (!(src_view = state->fb.depth_stencil))
         return;
@@ -5431,8 +5431,7 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
             wined3d_cs_emit_unload_resource(device->cs, resource);
         }
 
-        if (device->d3d_initialized)
-            device->adapter->adapter_ops->adapter_uninit_3d(device);
+        device->adapter->adapter_ops->adapter_uninit_3d(device);
 
         memset(&device->state, 0, sizeof(device->state));
         state_init(&device->state, &device->adapter->d3d_info, WINED3D_STATE_INIT_DEFAULT);
@@ -5449,7 +5448,7 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
             wined3d_device_set_depth_stencil_view(device, view);
     }
 
-    if (device->d3d_initialized && reset_state)
+    if (reset_state)
         hr = device->adapter->adapter_ops->adapter_init_3d(device);
 
     /* All done. There is no need to reload resources or shaders, this will happen automatically on the
@@ -5540,17 +5539,14 @@ void device_resource_released(struct wined3d_device *device, struct wined3d_reso
 
     TRACE("device %p, resource %p, type %s.\n", device, resource, debug_d3dresourcetype(type));
 
-    if (device->d3d_initialized)
+    for (i = 0; i < ARRAY_SIZE(device->state.fb.render_targets); ++i)
     {
-        for (i = 0; i < ARRAY_SIZE(device->state.fb.render_targets); ++i)
-        {
-            if ((rtv = device->state.fb.render_targets[i]) && rtv->resource == resource)
-                ERR("Resource %p is still in use as render target %u.\n", resource, i);
-        }
-
-        if ((rtv = device->state.fb.depth_stencil) && rtv->resource == resource)
-            ERR("Resource %p is still in use as depth/stencil buffer.\n", resource);
+        if ((rtv = device->state.fb.render_targets[i]) && rtv->resource == resource)
+            ERR("Resource %p is still in use as render target %u.\n", resource, i);
     }
+
+    if ((rtv = device->state.fb.depth_stencil) && rtv->resource == resource)
+        ERR("Resource %p is still in use as depth/stencil buffer.\n", resource);
 
     switch (type)
     {
