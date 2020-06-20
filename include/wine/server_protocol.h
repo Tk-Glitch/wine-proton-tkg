@@ -6032,6 +6032,7 @@ struct set_job_completion_port_reply
 };
 
 
+
 struct get_job_info_request
 {
     struct request_header __header;
@@ -6040,8 +6041,8 @@ struct get_job_info_request
 struct get_job_info_reply
 {
     struct reply_header __header;
-    unsigned int total_processes;
-    unsigned int active_processes;
+    int total_processes;
+    int active_processes;
 };
 
 

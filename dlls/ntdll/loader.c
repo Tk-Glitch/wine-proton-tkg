@@ -1459,8 +1459,10 @@ static void call_constructors( WINE_MODREF *wm )
     {
         caddr_t relocbase = (caddr_t)map->l_addr;
 
-#ifdef __FreeBSD__  /* FreeBSD doesn't relocate l_addr */
-        if (!get_relocbase(map->l_addr, &relocbase)) return;
+#ifdef __FreeBSD__
+        /* On older FreeBSD versions, l_addr was the absolute load address, now it's the relocation offset. */
+        if (!dlsym(RTLD_DEFAULT, "_rtld_version_laddr_offset"))
+            if (!get_relocbase(map->l_addr, &relocbase)) return;
 #endif
         switch (dyn->d_tag)
         {
@@ -1759,14 +1761,15 @@ static WCHAR builtin_steamclient_w[] = {'C',':','\\','w','i','n','d','o','w','s'
 static WCHAR native_steamclient_w[] = {'C',':','\\','P','r','o','g','r','a','m',' ','F','i','l','e','s',' ','(','x','8','6',')','\\','S','t','e','a','m','\\',
                                        's','t','e','a','m','c','l','i','e','n','t','6','4','.','d','l','l',0};
 static WCHAR steamclient_w[] = {'s','t','e','a','m','c','l','i','e','n','t','6','4',0};
+static WCHAR steamclient_dll_w[] = {'s','t','e','a','m','c','l','i','e','n','t','6','4','.','d','l','l',0};
 #else
 static WCHAR builtin_steamclient_w[] = {'C',':','\\','w','i','n','d','o','w','s','\\','s','y','s','t','e','m','3','2','\\',
                                         's','t','e','a','m','c','l','i','e','n','t','.','d','l','l',0};
 static WCHAR native_steamclient_w[] = {'C',':','\\','P','r','o','g','r','a','m',' ','F','i','l','e','s',' ','(','x','8','6',')','\\','S','t','e','a','m','\\',
                                        's','t','e','a','m','c','l','i','e','n','t','.','d','l','l',0};
 static WCHAR steamclient_w[] = {'s','t','e','a','m','c','l','i','e','n','t',0};
+static WCHAR steamclient_dll_w[] = {'s','t','e','a','m','c','l','i','e','n','t','.','d','l','l',0};
 #endif
-static WCHAR lsteamclient_w[] = {'l','s','t','e','a','m','c','l','i','e','n','t',0};
 
 static WCHAR *strstriW( const WCHAR *str, const WCHAR *sub )
 {
@@ -2686,8 +2689,8 @@ static const WCHAR *get_basename( const WCHAR *name )
     const WCHAR *ptr;
 
     if (name[0] && name[1] == ':') name += 2;  /* strip drive specification */
-    if ((ptr = strrchrW( name, '\\' ))) name = ptr + 1;
-    if ((ptr = strrchrW( name, '/' ))) name = ptr + 1;
+    if ((ptr = wcsrchr( name, '\\' ))) name = ptr + 1;
+    if ((ptr = wcsrchr( name, '/' ))) name = ptr + 1;
     return name;
 }
 
@@ -2756,10 +2759,10 @@ static BOOL needs_override_large_address_aware(const WCHAR *exename)
     if (app_key != (HANDLE)-1) return TRUE;
 
     str = RtlAllocateHeap( GetProcessHeap(), 0,
-                           sizeof(AppDefaultsW) + strlenW(exename) * sizeof(WCHAR) );
+                           sizeof(AppDefaultsW) + wcslen(exename) * sizeof(WCHAR) );
     if (!str) return FALSE;
-    strcpyW( str, AppDefaultsW );
-    strcatW( str, exename );
+    wcscpy( str, AppDefaultsW );
+    wcscat( str, exename );
 
     RtlOpenCurrentUser( KEY_ALL_ACCESS, &root );
     attr.Length = sizeof(attr);
@@ -3611,10 +3614,15 @@ NTSTATUS WINAPI DECLSPEC_HOTPATCH LdrLoadDll(LPCWSTR path_name, DWORD flags,
 {
     WINE_MODREF *wm;
     NTSTATUS nts;
+    const WCHAR *basename;
 
     RtlEnterCriticalSection( &loader_section );
 
-    if (!(flags & LDR_STEAM_INTERNAL) && strstriW(libname->Buffer, steamclient_w) && !strstriW(libname->Buffer, lsteamclient_w))
+    if (!(flags & LDR_STEAM_INTERNAL) && (basename = get_basename(libname->Buffer)) &&
+        (!RtlCompareUnicodeStrings(steamclient_w, wcslen(steamclient_w),
+                                  basename, wcslen(basename), TRUE) ||
+        !RtlCompareUnicodeStrings(steamclient_w, wcslen(steamclient_dll_w),
+                                  basename, wcslen(basename), TRUE)))
     {
         *hModule = get_builtin_steamclient_mod(TRUE);
         swap_builtin_to_native_steamclient_hack(hModule);
