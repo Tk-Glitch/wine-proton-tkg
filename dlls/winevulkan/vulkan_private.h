@@ -39,6 +39,7 @@
 
 #define WINEVULKAN_QUIRK_GET_DEVICE_PROC_ADDR 0x00000001
 #define WINEVULKAN_QUIRK_ADJUST_MAX_IMAGE_COUNT 0x00000002
+#define WINEVULKAN_QUIRK_IGNORE_EXPLICIT_LAYERS 0x00000004
 
 struct vulkan_func
 {
@@ -62,7 +63,7 @@ struct wine_vk_base
 struct VkCommandBuffer_T
 {
     struct wine_vk_base base;
-    struct VkDevice_T *device; /* parent */
+    VkDevice device; /* parent */
     VkCommandBuffer command_buffer; /* native command buffer */
 
     struct list pool_link;
@@ -115,7 +116,7 @@ struct VkPhysicalDevice_T
 struct VkQueue_T
 {
     struct wine_vk_base base;
-    struct VkDevice_T *device; /* parent */
+    VkDevice device; /* parent */
     VkQueue queue; /* native queue */
 
     VkDeviceQueueCreateFlags flags;
