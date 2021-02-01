@@ -15,6 +15,7 @@
 @ cdecl wined3d_incref(ptr)
 @ cdecl wined3d_register_software_device(ptr ptr)
 @ cdecl wined3d_register_window(ptr ptr ptr long)
+@ cdecl wined3d_restore_display_modes(ptr)
 @ cdecl wined3d_unregister_windows(ptr)
 
 @ cdecl wined3d_adapter_get_identifier(ptr long ptr)
@@ -273,7 +274,7 @@
 @ cdecl wined3d_stateblock_set_vs_consts_f(ptr long long ptr)
 @ cdecl wined3d_stateblock_set_vs_consts_i(ptr long long ptr)
 
-@ cdecl wined3d_swapchain_create(ptr ptr ptr ptr ptr)
+@ cdecl wined3d_swapchain_create(ptr ptr ptr ptr ptr ptr)
 @ cdecl wined3d_swapchain_decref(ptr)
 @ cdecl wined3d_swapchain_get_back_buffer(ptr long)
 @ cdecl wined3d_swapchain_get_device(ptr)
@@ -291,8 +292,9 @@
 @ cdecl wined3d_swapchain_set_palette(ptr ptr)
 @ cdecl wined3d_swapchain_set_window(ptr ptr)
 
-@ cdecl wined3d_swapchain_state_create(ptr ptr ptr)
+@ cdecl wined3d_swapchain_state_create(ptr ptr ptr ptr ptr)
 @ cdecl wined3d_swapchain_state_destroy(ptr)
+@ cdecl wined3d_swapchain_state_is_windowed(ptr)
 @ cdecl wined3d_swapchain_state_resize_target(ptr ptr)
 @ cdecl wined3d_swapchain_state_set_fullscreen(ptr ptr ptr)
 
@@ -331,8 +333,3 @@
 @ cdecl wined3d_vertex_declaration_incref(ptr)
 
 @ cdecl wined3d_extract_shader_input_signature_from_dxbc(ptr ptr long)
-
-@ cdecl wined3d_access_gl_texture(ptr ptr ptr long)
-@ cdecl wined3d_device_run_cs_callback(ptr ptr ptr long)
-@ cdecl wined3d_device_wait_idle(ptr)
-@ cdecl wined3d_get_gl_texture(ptr)

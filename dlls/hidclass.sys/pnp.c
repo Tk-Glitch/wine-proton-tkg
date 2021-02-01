@@ -30,9 +30,6 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(hid);
 
-static const WCHAR device_enumeratorW[] = {'H','I','D',0};
-static const WCHAR separator_W[] = {'\\',0};
-
 static NTSTATUS WINAPI internalComplete(DEVICE_OBJECT *deviceObject, IRP *irp,
     void *context)
 {
@@ -193,9 +190,11 @@ NTSTATUS WINAPI PNP_AddDevice(DRIVER_OBJECT *driver, DEVICE_OBJECT *PDO)
 
     lstrcpyW(ext->instance_id, instance_id);
 
-    lstrcpyW(ext->device_id, device_enumeratorW);
-    lstrcatW(ext->device_id, separator_W);
+    lstrcpyW(ext->device_id, L"HID");
+    lstrcatW(ext->device_id, L"\\");
     lstrcatW(ext->device_id, wcschr(device_id, '\\') + 1);
+
+    ext->xinput_hack = attr.Reserved[0];
 
     HID_LinkDevice(device);
 
@@ -264,7 +263,7 @@ NTSTATUS WINAPI HID_PNP_Dispatch(DEVICE_OBJECT *device, IRP *irp)
                     /* Device instance ID */
                     lstrcpyW(ptr, ext->device_id);
                     ptr += lstrlenW(ext->device_id);
-                    lstrcpyW(ptr, separator_W);
+                    lstrcpyW(ptr, L"\\");
                     ptr += 1;
                     lstrcpyW(ptr, ext->instance_id);
                     ptr += lstrlenW(ext->instance_id) + 1;
@@ -272,8 +271,8 @@ NTSTATUS WINAPI HID_PNP_Dispatch(DEVICE_OBJECT *device, IRP *irp)
                     lstrcpyW(ptr, ext->device_id);
                     ptr += lstrlenW(ext->device_id) + 1;
                     /* Bus ID */
-                    lstrcpyW(ptr, device_enumeratorW);
-                    ptr += lstrlenW(device_enumeratorW) + 1;
+                    lstrcpyW(ptr, L"HID");
+                    ptr += lstrlenW(L"HID") + 1;
                     *ptr = 0;
                     irp->IoStatus.Information = (ULONG_PTR)id;
                     rc = STATUS_SUCCESS;
@@ -300,6 +299,7 @@ NTSTATUS WINAPI HID_PNP_Dispatch(DEVICE_OBJECT *device, IRP *irp)
         {
             BASE_DEVICE_EXTENSION *ext = device->DeviceExtension;
             OBJECT_ATTRIBUTES attr;
+            HANDLE tmp;
 
             rc = minidriver->PNPDispatch(device, irp);
 
@@ -313,13 +313,16 @@ NTSTATUS WINAPI HID_PNP_Dispatch(DEVICE_OBJECT *device, IRP *irp)
             attr.ObjectName = &ext->link_name;
             attr.SecurityDescriptor = NULL;
             attr.SecurityQualityOfService = NULL;
-            NtOpenSymbolicLinkObject(&ext->link_handle, SYMBOLIC_LINK_QUERY, &attr);
-            ext->link_handle = ConvertToGlobalHandle(ext->link_handle);
 
-            if (ext->link_handle == INVALID_HANDLE_VALUE)
-                ERR("Failed to open link %s, error %u.\n", debugstr_w(ext->link_name.Buffer), GetLastError());
-            else
+            if (!NtOpenSymbolicLinkObject(&tmp, SYMBOLIC_LINK_QUERY, &attr) &&
+                (ext->link_handle = ConvertToGlobalHandle(tmp)) != INVALID_HANDLE_VALUE)
                 TRACE("Opened link handle: %p for %s\n", ext->link_handle, debugstr_w(ext->link_name.Buffer));
+            else
+            {
+                ERR("Failed to open link %s, error %u.\n", debugstr_w(ext->link_name.Buffer), GetLastError());
+                ext->link_handle = 0;
+            }
+            NtClose(tmp);
 
             return rc;
         }

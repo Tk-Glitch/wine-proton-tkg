@@ -40,9 +40,6 @@
 WINE_DEFAULT_DEBUG_CHANNEL(hid);
 WINE_DECLARE_DEBUG_CHANNEL(hid_report);
 
-static const WCHAR device_name_fmtW[] = {'\\','D','e','v','i','c','e',
-    '\\','H','I','D','#','%','p','&','%','p',0};
-
 NTSTATUS HID_CreateDevice(DEVICE_OBJECT *native_device, HID_MINIDRIVER_REGISTRATION *driver, DEVICE_OBJECT **device)
 {
     WCHAR dev_name[255];
@@ -50,7 +47,7 @@ NTSTATUS HID_CreateDevice(DEVICE_OBJECT *native_device, HID_MINIDRIVER_REGISTRAT
     NTSTATUS status;
     BASE_DEVICE_EXTENSION *ext;
 
-    swprintf(dev_name, ARRAY_SIZE(dev_name), device_name_fmtW, driver->DriverObject, native_device);
+    swprintf(dev_name, ARRAY_SIZE(dev_name), L"\\Device\\HID#%p&%p", driver->DriverObject, native_device);
     RtlInitUnicodeString( &nameW, dev_name );
 
     TRACE("Create base hid device %s\n", debugstr_w(dev_name));
@@ -78,22 +75,21 @@ NTSTATUS HID_CreateDevice(DEVICE_OBJECT *native_device, HID_MINIDRIVER_REGISTRAT
 
 NTSTATUS HID_LinkDevice(DEVICE_OBJECT *device)
 {
-    static const WCHAR backslashW[] = {'\\',0};
     WCHAR device_instance_id[MAX_DEVICE_ID_LEN];
     SP_DEVINFO_DATA Data;
     UNICODE_STRING nameW;
     NTSTATUS status;
     HDEVINFO devinfo;
     GUID hidGuid;
-    BASE_DEVICE_EXTENSION *ext;
+    BASE_DEVICE_EXTENSION *ext = device->DeviceExtension;
 
     HidD_GetHidGuid(&hidGuid);
-    ext = device->DeviceExtension;
+    if (ext->xinput_hack) hidGuid.Data4[7]++; /* HACK: use different GUID so only xinput will find this device */
 
     RtlInitUnicodeString( &nameW, ext->device_name);
 
     lstrcpyW(device_instance_id, ext->device_id);
-    lstrcatW(device_instance_id, backslashW);
+    lstrcatW(device_instance_id, L"\\");
     lstrcatW(device_instance_id, ext->instance_id);
 
     devinfo = SetupDiCreateDeviceInfoList(&GUID_DEVCLASS_HIDCLASS, NULL);
@@ -125,6 +121,8 @@ NTSTATUS HID_LinkDevice(DEVICE_OBJECT *device)
         return status;
     }
 
+    ext->link_handle = 0;
+
     /* FIXME: This should probably be done in mouhid.sys. */
     if (ext->preparseData->caps.UsagePage == HID_USAGE_PAGE_GENERIC
             && ext->preparseData->caps.Usage == HID_USAGE_GENERIC_MOUSE)
@@ -132,8 +130,6 @@ NTSTATUS HID_LinkDevice(DEVICE_OBJECT *device)
         if (!IoRegisterDeviceInterface(device, &GUID_DEVINTERFACE_MOUSE, NULL, &ext->mouse_link_name))
             ext->is_mouse = TRUE;
     }
-
-    ext->link_handle = INVALID_HANDLE_VALUE;
 
     return STATUS_SUCCESS;
 
@@ -251,13 +247,12 @@ static void HID_Device_sendRawInput(DEVICE_OBJECT *device, HID_XFER_PACKET *pack
 {
     BASE_DEVICE_EXTENSION *ext = device->DeviceExtension;
 
-    if (ext->link_handle == INVALID_HANDLE_VALUE)
-        return;
+    if (ext->xinput_hack) return;
 
     SERVER_START_REQ(send_hardware_message)
     {
         req->win                  = 0;
-        req->flags                = SEND_HWMSG_RAWINPUT;
+        req->flags                = 0;
         req->input.type           = HW_INPUT_HID;
         req->input.hid.device     = wine_server_obj_handle(ext->link_handle);
         req->input.hid.usage_page = ext->preparseData->caps.UsagePage;

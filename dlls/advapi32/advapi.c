@@ -32,7 +32,6 @@
 #include "wincred.h"
 #include "wct.h"
 
-#include "wine/unicode.h"
 #include "wine/debug.h"
 
 #include "advapi32_misc.h"
@@ -44,14 +43,15 @@ WINE_DEFAULT_DEBUG_CHANNEL(advapi);
  */
 BOOL WINAPI GetUserNameA( LPSTR name, LPDWORD size )
 {
-    DWORD len = GetEnvironmentVariableA( "WINEUSERNAME", name, *size );
-    BOOL ret;
-
-    if (!len) return FALSE;
-    if ((ret = (len < *size))) len++;
-    else SetLastError( ERROR_INSUFFICIENT_BUFFER );
-    *size = len;
-    return ret;
+    static const char steamuserA[] = {'s','t','e','a','m','u','s','e','r',0};
+    if(*size < ARRAY_SIZE(steamuserA)){
+        SetLastError( ERROR_INSUFFICIENT_BUFFER );
+        *size = ARRAY_SIZE(steamuserA);
+        return FALSE;
+    }
+    memcpy(name, steamuserA, sizeof(steamuserA));
+    *size = ARRAY_SIZE(steamuserA);
+    return TRUE;
 }
 
 /******************************************************************************
@@ -59,15 +59,15 @@ BOOL WINAPI GetUserNameA( LPSTR name, LPDWORD size )
  */
 BOOL WINAPI GetUserNameW( LPWSTR name, LPDWORD size )
 {
-    static const WCHAR wineusernameW[] = {'W','I','N','E','U','S','E','R','N','A','M','E',0};
-    DWORD len = GetEnvironmentVariableW( wineusernameW, name, *size );
-    BOOL ret;
-
-    if (!len) return FALSE;
-    if ((ret = (len < *size))) len++;
-    else SetLastError( ERROR_INSUFFICIENT_BUFFER );
-    *size = len;
-    return ret;
+    static const WCHAR steamuserW[] = {'s','t','e','a','m','u','s','e','r',0};
+    if(*size < ARRAY_SIZE(steamuserW)){
+        SetLastError( ERROR_INSUFFICIENT_BUFFER );
+        *size = ARRAY_SIZE(steamuserW);
+        return FALSE;
+    }
+    memcpy(name, steamuserW, sizeof(steamuserW));
+    *size = ARRAY_SIZE(steamuserW);
+    return TRUE;
 }
 
 /******************************************************************************
@@ -274,14 +274,13 @@ typedef UINT (WINAPI *fnMsiProvideComponentFromDescriptor)(LPCWSTR,LPWSTR,DWORD*
 DWORD WINAPI CommandLineFromMsiDescriptor( WCHAR *szDescriptor,
                     WCHAR *szCommandLine, DWORD *pcchCommandLine )
 {
-    static const WCHAR szMsi[] = { 'm','s','i',0 };
     fnMsiProvideComponentFromDescriptor mpcfd;
     HMODULE hmsi;
     UINT r = ERROR_CALL_NOT_IMPLEMENTED;
 
     TRACE("%s %p %p\n", debugstr_w(szDescriptor), szCommandLine, pcchCommandLine);
 
-    hmsi = LoadLibraryW( szMsi );
+    hmsi = LoadLibraryW( L"msi" );
     if (!hmsi)
         return r;
     mpcfd = (fnMsiProvideComponentFromDescriptor)GetProcAddress( hmsi,
