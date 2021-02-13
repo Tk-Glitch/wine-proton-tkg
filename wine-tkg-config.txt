@@ -1,15 +1,16 @@
-# Last proton_dist configuration - Mon Feb  1 09:02:04 PM CET 2021 :
+# Last proton_dist configuration - Sat Feb 13 09:19:15 PM CET 2021 :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 6.1.r0.g47ac628b4a4
-Using wine-staging patchset (version 6.1.r0.gf6dacd2f)
+Wine (plain) version: 6.2.r0.g4f7e621dc58
+Using wine-staging patchset (version 6.2.r0.g3b5ea332)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
 
 Done applying reverting hotfixes (if any) - list available in prepare.log
 
+Applied reverting hotfix shell32-Progress_Dialog-staging-41e1551.mystagingrevert
 use_clock_monotonic.patch -- ( Applied clock_monotonic patch )
 plasma_systray_fix.patch -- ( Applied plasma 5 systray fix )
 FS_bypass_compositor.patch -- ( Applied Fullscreen compositor bypass patch )
@@ -44,7 +45,6 @@ Applied your own patch FinalFantasyXVHack.mypatch
 Applied your own patch amdags-proton.mypatch
 Applied your own patch atiadlxx-proton.mypatch
 Applied your own patch fsync_futex2.mypatch
-Applied your own patch ntdll_Map_top-down_if_dll_characteristics_include_DYNAMIC_BASE.mypatch
 Applied your own patch origin_downloads_e4ca5dbe_revert.mypatch
 Applied your own patch unhide-prefix-update-window.mypatch
 
