@@ -39,6 +39,7 @@
 #define NONAMELESSUNION
 
 #include "wine/debug.h"
+#include "wine/heap.h"
 #include "wine/unicode.h"
 #include "wine/asm.h"
 #include "windef.h"
@@ -90,7 +91,9 @@ static const struct dinput_device *dinput_devices[] =
 {
     &mouse_device,
     &keyboard_device,
-    &joystick_sdl_device,
+    &joystick_linuxinput_device,
+    &joystick_linux_device,
+    &joystick_osx_device
 };
 
 HINSTANCE DINPUT_instance;
@@ -319,6 +322,20 @@ static void _dump_EnumDevices_dwFlags(DWORD dwFlags)
     TRACE("\n");
 }
 
+static const char *dump_semantic(DWORD semantic)
+{
+    if((semantic & 0xff000000) == 0xff000000)
+        return "Any AXIS";
+    else if((semantic & 0x82000000) == 0x82000000)
+        return "Mouse";
+    else if((semantic & 0x81000000) == 0x81000000)
+        return "Keybaord";
+    else if((semantic & DIVIRTUAL_FLYING_HELICOPTER) == DIVIRTUAL_FLYING_HELICOPTER)
+        return "Helicopter";
+
+    return "Unknown";
+}
+
 static void _dump_diactionformatA(LPDIACTIONFORMATA lpdiActionFormat)
 {
     unsigned int i;
@@ -341,7 +358,7 @@ static void _dump_diactionformatA(LPDIACTIONFORMATA lpdiActionFormat)
     {
         TRACE("diaf.rgoAction[%u]:\n", i);
         TRACE("\tuAppData=0x%lx\n", lpdiActionFormat->rgoAction[i].uAppData);
-        TRACE("\tdwSemantic=0x%08x\n", lpdiActionFormat->rgoAction[i].dwSemantic);
+        TRACE("\tdwSemantic=0x%08x (%s)\n", lpdiActionFormat->rgoAction[i].dwSemantic, dump_semantic(lpdiActionFormat->rgoAction[i].dwSemantic));
         TRACE("\tdwFlags=0x%x\n", lpdiActionFormat->rgoAction[i].dwFlags);
         TRACE("\tszActionName=%s\n", debugstr_a(lpdiActionFormat->rgoAction[i].u.lptszActionName));
         TRACE("\tguidInstance=%s\n", debugstr_guid(&lpdiActionFormat->rgoAction[i].guidInstance));
@@ -481,7 +498,6 @@ static HRESULT WINAPI IDirectInputAImpl_EnumDevices(
     unsigned int i;
     int j;
     HRESULT r;
-    BOOL found_device = FALSE;
 
     TRACE("(this=%p,0x%04x '%s',%p,%p,0x%04x)\n",
 	  This, dwDevType, _dump_DIDEVTYPE_value(dwDevType, This->dwVersion),
@@ -504,15 +520,9 @@ static HRESULT WINAPI IDirectInputAImpl_EnumDevices(
             devInstance.dwSize = sizeof(devInstance);
             r = dinput_devices[i]->enum_deviceA(dwDevType, dwFlags, &devInstance, This->dwVersion, j);
             if (r == S_OK)
-            {
-                found_device = TRUE;
                 if (enum_callback_wrapper(lpCallback, &devInstance, pvRef) == DIENUM_STOP)
                     return S_OK;
-            }
         }
-        /* If we have found devices after SDL stop enumeration */
-        if (dinput_devices[i] == &joystick_sdl_device && found_device)
-            return S_OK;
     }
 
     return S_OK;
@@ -529,7 +539,6 @@ static HRESULT WINAPI IDirectInputWImpl_EnumDevices(
     unsigned int i;
     int j;
     HRESULT r;
-    BOOL found_device = FALSE;
 
     TRACE("(this=%p,0x%04x '%s',%p,%p,0x%04x)\n",
 	  This, dwDevType, _dump_DIDEVTYPE_value(dwDevType, This->dwVersion),
@@ -551,15 +560,9 @@ static HRESULT WINAPI IDirectInputWImpl_EnumDevices(
             TRACE("  - checking device %u ('%s')\n", i, dinput_devices[i]->name);
             r = dinput_devices[i]->enum_deviceW(dwDevType, dwFlags, &devInstance, This->dwVersion, j);
             if (r == S_OK)
-            {
-                found_device = TRUE;
                 if (enum_callback_wrapper(lpCallback, &devInstance, pvRef) == DIENUM_STOP)
                     return S_OK;
-            }
         }
-        /* If we have found devices after SDL stop enumeration */
-        if (dinput_devices[i] == &joystick_sdl_device && found_device)
-            return S_OK;
     }
 
     return S_OK;
@@ -1154,9 +1157,6 @@ static HRESULT WINAPI IDirectInput8AImpl_EnumDevicesBySemantics(
                 didevis[device_count-1] = didevi;
             }
         }
-        /* If we have found devices after SDL stop enumeration */
-        if (dinput_devices[i] == &joystick_sdl_device && device_count)
-            return S_OK;
     }
 
     remain = device_count;
@@ -1262,9 +1262,6 @@ static HRESULT WINAPI IDirectInput8WImpl_EnumDevicesBySemantics(
                 didevis[device_count-1] = didevi;
             }
         }
-        /* If we have found devices after SDL stop enumeration */
-        if (dinput_devices[i] == &joystick_sdl_device && device_count)
-            return S_OK;
     }
 
     remain = device_count;
@@ -1340,9 +1337,34 @@ static HRESULT WINAPI IDirectInput8AImpl_ConfigureDevices(
 
     /* Copy parameters */
     diCDParamsW.dwSize = sizeof(DICONFIGUREDEVICESPARAMSW);
+    diCDParamsW.dwcUsers = lpdiCDParams->dwcUsers;
     diCDParamsW.dwcFormats = lpdiCDParams->dwcFormats;
     diCDParamsW.lprgFormats = &diafW;
     diCDParamsW.hwnd = lpdiCDParams->hwnd;
+    diCDParamsW.lptszUserNames = NULL;
+
+    if (lpdiCDParams->lptszUserNames) {
+        char *start = lpdiCDParams->lptszUserNames;
+        WCHAR *to = NULL;
+        int total_len = 0;
+        for (i = 0; i < lpdiCDParams->dwcUsers; i++)
+        {
+            char *end = start + 1;
+            int len;
+            while (*(end++));
+            len = MultiByteToWideChar(CP_ACP, 0, start, end - start, NULL, 0);
+            total_len += len + 2; /* length of string and two null char */
+            if (to)
+                to = HeapReAlloc(GetProcessHeap(), 0, to, sizeof(WCHAR) * total_len);
+            else
+                to = HeapAlloc(GetProcessHeap(), 0, sizeof(WCHAR) * total_len);
+
+            MultiByteToWideChar(CP_ACP, 0, start, end - start, to + (total_len - len - 2), len);
+            to[total_len] = 0;
+            to[total_len - 1] = 0;
+        }
+        diCDParamsW.lptszUserNames = to;
+    }
 
     diafW.rgoAction = HeapAlloc(GetProcessHeap(), 0, sizeof(DIACTIONW)*lpdiCDParams->lprgFormats->dwNumActions);
     _copy_diactionformatAtoW(&diafW, lpdiCDParams->lprgFormats);
@@ -1369,6 +1391,8 @@ static HRESULT WINAPI IDirectInput8AImpl_ConfigureDevices(
         HeapFree(GetProcessHeap(), 0, (void*) diafW.rgoAction[i].u.lptszActionName);
 
     HeapFree(GetProcessHeap(), 0, diafW.rgoAction);
+
+    heap_free((void*) diCDParamsW.lptszUserNames);
 
     return hr;
 }

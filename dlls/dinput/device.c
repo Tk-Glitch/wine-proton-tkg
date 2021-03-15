@@ -30,6 +30,7 @@
 #include <string.h>
 #include "wine/debug.h"
 #include "wine/unicode.h"
+#include "wine/heap.h"
 #include "windef.h"
 #include "winbase.h"
 #include "winreg.h"
@@ -571,6 +572,22 @@ failed:
     return DIERR_OUTOFMEMORY;
 }
 
+static int verify_offset(const DataFormat *df, int offset)
+{
+    int i;
+
+    if (!df->offsets)
+        return -1;
+
+    for (i = df->wine_df->dwNumObjs - 1; i >= 0; i--)
+    {
+        if (df->offsets[i] == offset)
+            return offset;
+    }
+
+    return -1;
+}
+
 /* find an object by its offset in a data format */
 static int offset_to_object(const DataFormat *df, int offset)
 {
@@ -643,12 +660,29 @@ static DWORD semantic_to_obj_id(IDirectInputDeviceImpl* This, DWORD dwSemantic)
     return type | (0x0000ff00 & (obj_instance << 8));
 }
 
+static void del_mapping_key(const WCHAR *device, const WCHAR *username, const WCHAR *guid) {
+    static const WCHAR subkey[] = {
+        'S','o','f','t','w','a','r','e','\\',
+        'W','i','n','e','\\',
+        'D','i','r','e','c','t','I','n','p','u','t','\\',
+        'M','a','p','p','i','n','g','s','\\','%','s','\\','%','s','\\','%','s','\0'};
+    WCHAR *keyname;
+
+    keyname = heap_alloc(sizeof(WCHAR) * (lstrlenW(subkey) + strlenW(username) + strlenW(device) + strlenW(guid)));
+    sprintfW(keyname, subkey, username, device, guid);
+
+    /* Remove old key mappings so there will be no overlapping mappings */
+    RegDeleteKeyW(HKEY_CURRENT_USER, keyname);
+
+    heap_free(keyname);
+}
+
 /*
  * get_mapping_key
  * Retrieves an open registry key to save the mapping, parametrized for an username,
  * specific device and specific action mapping guid.
  */
-static HKEY get_mapping_key(const WCHAR *device, const WCHAR *username, const WCHAR *guid)
+static HKEY get_mapping_key(const WCHAR *device, const WCHAR *username, const WCHAR *guid, BOOL create)
 {
     static const WCHAR subkey[] = {
         'S','o','f','t','w','a','r','e','\\',
@@ -663,15 +697,18 @@ static HKEY get_mapping_key(const WCHAR *device, const WCHAR *username, const WC
     sprintfW(keyname, subkey, username, device, guid);
 
     /* The key used is HKCU\Software\Wine\DirectInput\Mappings\[username]\[device]\[mapping_guid] */
-    if (RegCreateKeyW(HKEY_CURRENT_USER, keyname, &hkey))
-        hkey = 0;
+    if (create) {
+        if (RegCreateKeyW(HKEY_CURRENT_USER, keyname, &hkey))
+            hkey = 0;
+    } else if (RegOpenKeyW(HKEY_CURRENT_USER, keyname, &hkey))
+            hkey = 0;
 
     HeapFree(GetProcessHeap(), 0, keyname);
 
     return hkey;
 }
 
-static HRESULT save_mapping_settings(IDirectInputDevice8W *iface, LPDIACTIONFORMATW lpdiaf, LPCWSTR lpszUsername)
+HRESULT save_mapping_settings(IDirectInputDevice8W *iface, LPDIACTIONFORMATW lpdiaf, LPCWSTR lpszUsername)
 {
     WCHAR *guid_str = NULL;
     DIDEVICEINSTANCEW didev;
@@ -684,7 +721,9 @@ static HRESULT save_mapping_settings(IDirectInputDevice8W *iface, LPDIACTIONFORM
     if (StringFromCLSID(&lpdiaf->guidActionMap, &guid_str) != S_OK)
         return DI_SETTINGSNOTSAVED;
 
-    hkey = get_mapping_key(didev.tszInstanceName, lpszUsername, guid_str);
+    del_mapping_key(didev.tszInstanceName, lpszUsername, guid_str);
+
+    hkey = get_mapping_key(didev.tszInstanceName, lpszUsername, guid_str, TRUE);
 
     if (!hkey)
     {
@@ -714,12 +753,12 @@ static HRESULT save_mapping_settings(IDirectInputDevice8W *iface, LPDIACTIONFORM
     return DI_OK;
 }
 
-static BOOL load_mapping_settings(IDirectInputDeviceImpl *This, LPDIACTIONFORMATW lpdiaf, const WCHAR *username)
+BOOL load_mapping_settings(IDirectInputDeviceImpl *This, LPDIACTIONFORMATW lpdiaf, const WCHAR *username)
 {
     HKEY hkey;
     WCHAR *guid_str;
     DIDEVICEINSTANCEW didev;
-    int i, mapped = 0;
+    int i;
 
     didev.dwSize = sizeof(didev);
     IDirectInputDevice8_GetDeviceInfo(&This->IDirectInputDevice8W_iface, &didev);
@@ -727,7 +766,7 @@ static BOOL load_mapping_settings(IDirectInputDeviceImpl *This, LPDIACTIONFORMAT
     if (StringFromCLSID(&lpdiaf->guidActionMap, &guid_str) != S_OK)
         return FALSE;
 
-    hkey = get_mapping_key(didev.tszInstanceName, username, guid_str);
+    hkey = get_mapping_key(didev.tszInstanceName, username, guid_str, FALSE);
 
     if (!hkey)
     {
@@ -748,15 +787,61 @@ static BOOL load_mapping_settings(IDirectInputDeviceImpl *This, LPDIACTIONFORMAT
         {
             lpdiaf->rgoAction[i].dwObjID = id;
             lpdiaf->rgoAction[i].guidInstance = didev.guidInstance;
-            lpdiaf->rgoAction[i].dwHow = DIAH_DEFAULT;
-            mapped += 1;
+            lpdiaf->rgoAction[i].dwHow = DIAH_USERCONFIG;
         }
+        else
+        {
+            memset(&lpdiaf->rgoAction[i].guidInstance, 0, sizeof(GUID));
+            lpdiaf->rgoAction[i].dwHow = DIAH_UNMAPPED;
+        }
+
     }
 
     RegCloseKey(hkey);
     CoTaskMemFree(guid_str);
 
-    return mapped > 0;
+    /* On Windows BuildActionMap can open empty mapping, so always return TRUE if get_mapping_key is success */
+    return TRUE;
+}
+
+static BOOL set_app_data(IDirectInputDeviceImpl *dev, int offset, UINT_PTR app_data)
+{
+    int num_actions = dev->num_actions;
+    ActionMap *action_map = dev->action_map, *target_map = NULL;
+
+    if (num_actions == 0)
+    {
+        num_actions = 1;
+        action_map = HeapAlloc(GetProcessHeap(), 0, sizeof(ActionMap));
+        if (!action_map) return FALSE;
+        target_map = &action_map[0];
+    }
+    else
+    {
+        int i;
+        for (i = 0; i < num_actions; i++)
+        {
+            if (dev->action_map[i].offset != offset) continue;
+            target_map = &dev->action_map[i];
+            break;
+        }
+
+        if (!target_map)
+        {
+            num_actions++;
+            action_map = HeapReAlloc(GetProcessHeap(), 0, action_map, sizeof(ActionMap)*num_actions);
+            if (!action_map) return FALSE;
+            target_map = &action_map[num_actions-1];
+        }
+    }
+
+    target_map->offset = offset;
+    target_map->uAppData = app_data;
+
+    dev->action_map = action_map;
+    dev->num_actions = num_actions;
+
+    return TRUE;
 }
 
 HRESULT _build_action_map(LPDIRECTINPUTDEVICE8W iface, LPDIACTIONFORMATW lpdiaf, LPCWSTR lpszUserName, DWORD dwFlags, DWORD devMask, LPCDIDATAFORMAT df)
@@ -779,13 +864,18 @@ HRESULT _build_action_map(LPDIRECTINPUTDEVICE8W iface, LPDIACTIONFORMATW lpdiaf,
         load_success = load_mapping_settings(This, lpdiaf, username);
     }
 
-    if (load_success) return DI_OK;
+    if (load_success) {
+        /* Update dwCRC to track if action format has changed */
+        for (i=0; i < lpdiaf->dwNumActions; i++)
+        {
+            lpdiaf->dwCRC ^= (lpdiaf->rgoAction[i].dwObjID << i * 2) | (lpdiaf->rgoAction[i].dwObjID >> (sizeof(lpdiaf->dwCRC) * 8 - i * 2));
+            lpdiaf->dwCRC ^= (lpdiaf->rgoAction[i].dwSemantic << (i * 2 + 5)) | (lpdiaf->rgoAction[i].dwSemantic >> (sizeof(lpdiaf->dwCRC) * 8 - (i * 2 + 5)));
+        }
+        return DI_OK;
+    }
 
     for (i=0; i < lpdiaf->dwNumActions; i++)
     {
-        /* Don't touch a user configured action */
-        if (lpdiaf->rgoAction[i].dwHow == DIAH_USERCONFIG) continue;
-
         if ((lpdiaf->rgoAction[i].dwSemantic & devMask) == devMask)
         {
             DWORD obj_id = semantic_to_obj_id(This, lpdiaf->rgoAction[i].dwSemantic);
@@ -816,6 +906,14 @@ HRESULT _build_action_map(LPDIRECTINPUTDEVICE8W iface, LPDIACTIONFORMATW lpdiaf,
         }
     }
 
+    /* Update dwCRC to track if action format has changed */
+    lpdiaf->dwCRC = 0;
+    for (i=0; i < lpdiaf->dwNumActions; i++)
+    {
+        lpdiaf->dwCRC ^= (lpdiaf->rgoAction[i].dwObjID << i * 2) | (lpdiaf->rgoAction[i].dwObjID >> (sizeof(lpdiaf->dwCRC) * 8 - i * 2));
+        lpdiaf->dwCRC ^= (lpdiaf->rgoAction[i].dwSemantic << (i * 2 + 5)) | (lpdiaf->rgoAction[i].dwSemantic >> (sizeof(lpdiaf->dwCRC) * 8 - (i * 2 + 5)));
+    }
+
     if (!has_actions) return DI_NOEFFECT;
 
     return  IDirectInputDevice8WImpl_BuildActionMap(iface, lpdiaf, lpszUserName, dwFlags);
@@ -831,8 +929,10 @@ HRESULT _set_action_map(LPDIRECTINPUTDEVICE8W iface, LPDIACTIONFORMATW lpdiaf, L
     DIPROPSTRING dps;
     WCHAR username[MAX_PATH];
     DWORD username_size = MAX_PATH;
+    DWORD new_crc = 0;
     int i, action = 0, num_actions = 0;
     unsigned int offset = 0;
+    ActionMap *action_map;
 
     if (This->acquired) return DIERR_ACQUIRED;
 
@@ -841,22 +941,37 @@ HRESULT _set_action_map(LPDIRECTINPUTDEVICE8W iface, LPDIACTIONFORMATW lpdiaf, L
     data_format.dwFlags = DIDF_RELAXIS;
     data_format.dwDataSize = lpdiaf->dwDataSize;
 
+    /* Calculate checksum for actionformat */
+    for (i=0; i < lpdiaf->dwNumActions; i++)
+    {
+        new_crc ^= (lpdiaf->rgoAction[i].dwObjID << i * 2) | (lpdiaf->rgoAction[i].dwObjID >> (sizeof(lpdiaf->dwCRC) * 8 - i * 2));
+        new_crc ^= (lpdiaf->rgoAction[i].dwSemantic << (i * 2 + 5)) | (lpdiaf->rgoAction[i].dwSemantic >> (sizeof(lpdiaf->dwCRC) * 8 - (i * 2 + 5)));
+    }
+
     /* Count the actions */
     for (i=0; i < lpdiaf->dwNumActions; i++)
-        if (IsEqualGUID(&This->guid, &lpdiaf->rgoAction[i].guidInstance))
+    {
+        if (IsEqualGUID(&This->guid, &lpdiaf->rgoAction[i].guidInstance) ||
+                (IsEqualGUID(&IID_NULL, &lpdiaf->rgoAction[i].guidInstance) &&
+                  ((lpdiaf->rgoAction[i].dwSemantic & lpdiaf->dwGenre) == lpdiaf->dwGenre ||
+                   (lpdiaf->rgoAction[i].dwSemantic & 0xff000000) == 0xff000000 /* Any Axis */) ))
+        {
             num_actions++;
+        }
+    }
 
-    if (num_actions == 0) return DI_NOEFFECT;
+    /* Should return DI_NOEFFECT if we dont have any actions and actionformat has not changed */
+    if (num_actions == 0 && lpdiaf->dwCRC == new_crc && !(dwFlags & DIDSAM_FORCESAVE)) return DI_NOEFFECT;
 
-    This->num_actions = num_actions;
+    /* update dwCRC to track if action format has changed */
+    lpdiaf->dwCRC = new_crc;
 
     /* Construct the dataformat and actionmap */
     obj_df = HeapAlloc(GetProcessHeap(), 0, sizeof(DIOBJECTDATAFORMAT)*num_actions);
     data_format.rgodf = (LPDIOBJECTDATAFORMAT)obj_df;
     data_format.dwNumObjs = num_actions;
 
-    HeapFree(GetProcessHeap(), 0, This->action_map);
-    This->action_map = HeapAlloc(GetProcessHeap(), 0, sizeof(ActionMap)*num_actions);
+    action_map = HeapAlloc(GetProcessHeap(), 0, sizeof(ActionMap)*num_actions);
 
     for (i = 0; i < lpdiaf->dwNumActions; i++)
     {
@@ -873,16 +988,51 @@ HRESULT _set_action_map(LPDIRECTINPUTDEVICE8W iface, LPDIACTIONFORMATW lpdiaf, L
 
             memcpy(&obj_df[action], obj, df->dwObjSize);
 
-            This->action_map[action].uAppData = lpdiaf->rgoAction[i].uAppData;
-            This->action_map[action].offset = offset;
+            action_map[action].uAppData = lpdiaf->rgoAction[i].uAppData;
+            action_map[action].offset = offset;
             obj_df[action].dwOfs = offset;
             offset += (type & DIDFT_BUTTON) ? 1 : 4;
 
             action++;
         }
+        else if ((lpdiaf->rgoAction[i].dwSemantic & lpdiaf->dwGenre) == lpdiaf->dwGenre ||
+                 (lpdiaf->rgoAction[i].dwSemantic & 0xff000000) == 0xff000000 /* Any Axis */)
+        {
+            DWORD obj_id = semantic_to_obj_id(This, lpdiaf->rgoAction[i].dwSemantic);
+            DWORD type = DIDFT_GETTYPE(obj_id);
+            DWORD inst = DIDFT_GETINSTANCE(obj_id);
+            LPDIOBJECTDATAFORMAT obj;
+
+            if (type == DIDFT_PSHBUTTON) type = DIDFT_BUTTON;
+            else if (type == DIDFT_RELAXIS) type = DIDFT_AXIS;
+
+            obj = dataformat_to_odf_by_type(df, inst, type);
+            TRACE("obj %p, inst 0x%08x, type 0x%08x\n", obj, inst, type);
+            if(obj)
+            {
+                memcpy(&obj_df[action], obj, df->dwObjSize);
+
+                This->action_map[action].uAppData = lpdiaf->rgoAction[i].uAppData;
+                This->action_map[action].offset = offset;
+                obj_df[action].dwOfs = offset;
+                offset += (type & DIDFT_BUTTON) ? 1 : 4;
+
+                action++;
+            }
+        }
     }
 
+    if (action == 0)
+    {
+        HeapFree(GetProcessHeap(), 0, obj_df);
+        return DI_NOEFFECT;
+    }
+    data_format.dwNumObjs = action;
+
     IDirectInputDevice8_SetDataFormat(iface, &data_format);
+
+    This->action_map = action_map;
+    This->num_actions = num_actions;
 
     HeapFree(GetProcessHeap(), 0, obj_df);
 
@@ -962,6 +1112,7 @@ void queue_event(LPDIRECTINPUTDEVICE8A iface, int inst_id, DWORD data, DWORD tim
     This->data_queue[This->queue_head].dwData      = data;
     This->data_queue[This->queue_head].dwTimeStamp = time;
     This->data_queue[This->queue_head].dwSequence  = seq;
+    This->data_queue[This->queue_head].uAppData    = -1;
 
     /* Set uAppData by means of action mapping */
     if (This->num_actions > 0)
@@ -1062,6 +1213,10 @@ HRESULT WINAPI IDirectInputDevice2WImpl_SetDataFormat(LPDIRECTINPUTDEVICE8W ifac
     if (This->acquired) return DIERR_ACQUIRED;
 
     EnterCriticalSection(&This->crit);
+
+    HeapFree(GetProcessHeap(), 0, This->action_map);
+    This->action_map = NULL;
+    This->num_actions = 0;
 
     release_DataFormat(&This->data_format);
     res = create_DataFormat(df, &This->data_format);
@@ -1439,6 +1594,23 @@ HRESULT WINAPI IDirectInputDevice2WImpl_SetProperty(
             }
             if (device_player)
                 lstrcpynW(device_player->username, ps->wsz, ARRAY_SIZE(device_player->username));
+            break;
+        }
+        case (DWORD_PTR) DIPROP_APPDATA:
+        {
+            int offset = -1;
+            LPCDIPROPPOINTER pp = (LPCDIPROPPOINTER)pdiph;
+            if (pdiph->dwSize != sizeof(DIPROPPOINTER)) return DIERR_INVALIDPARAM;
+
+            if (pdiph->dwHow == DIPH_BYID)
+                offset = id_to_offset(&This->data_format, pdiph->dwObj);
+            else if (pdiph->dwHow == DIPH_BYOFFSET)
+                offset = verify_offset(&This->data_format, pdiph->dwObj);
+            else
+                return DIERR_UNSUPPORTED;
+
+            if (offset == -1) return DIERR_OBJECTNOTFOUND;
+            if (!set_app_data(This, offset, pp->uData)) return DIERR_OUTOFMEMORY;
             break;
         }
         default:

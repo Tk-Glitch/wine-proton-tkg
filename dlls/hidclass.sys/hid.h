@@ -59,8 +59,6 @@ typedef struct _BASE_DEVICE_EXTENSION {
     BOOL is_mouse;
     UNICODE_STRING mouse_link_name;
 
-    BOOL xinput_hack;
-
     /* Minidriver Specific stuff will end up here */
 } BASE_DEVICE_EXTENSION;
 

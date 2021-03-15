@@ -179,8 +179,6 @@ NTSTATUS WINAPI PNP_AddDevice(DRIVER_OBJECT *driver, DEVICE_OBJECT *PDO)
     lstrcatW(ext->device_id, L"\\");
     lstrcatW(ext->device_id, wcschr(device_id, '\\') + 1);
 
-    ext->xinput_hack = attr.Reserved[0];
-
     HID_LinkDevice(device);
 
     ext->poll_interval = DEFAULT_POLL_INTERVAL;
@@ -274,7 +272,6 @@ NTSTATUS WINAPI HID_PNP_Dispatch(DEVICE_OBJECT *device, IRP *irp)
         {
             BASE_DEVICE_EXTENSION *ext = device->DeviceExtension;
             OBJECT_ATTRIBUTES attr;
-            HANDLE tmp;
 
             rc = minidriver->PNPDispatch(device, irp);
 
@@ -288,16 +285,13 @@ NTSTATUS WINAPI HID_PNP_Dispatch(DEVICE_OBJECT *device, IRP *irp)
             attr.ObjectName = &ext->link_name;
             attr.SecurityDescriptor = NULL;
             attr.SecurityQualityOfService = NULL;
+            NtOpenSymbolicLinkObject(&ext->link_handle, SYMBOLIC_LINK_QUERY, &attr);
+            ext->link_handle = ConvertToGlobalHandle(ext->link_handle);
 
-            if (!NtOpenSymbolicLinkObject(&tmp, SYMBOLIC_LINK_QUERY, &attr) &&
-                (ext->link_handle = ConvertToGlobalHandle(tmp)) != INVALID_HANDLE_VALUE)
-                TRACE("Opened link handle: %p for %s\n", ext->link_handle, debugstr_w(ext->link_name.Buffer));
-            else
-            {
+            if (ext->link_handle == INVALID_HANDLE_VALUE)
                 ERR("Failed to open link %s, error %u.\n", debugstr_w(ext->link_name.Buffer), GetLastError());
-                ext->link_handle = 0;
-            }
-            NtClose(tmp);
+            else
+                TRACE("Opened link handle: %p for %s\n", ext->link_handle, debugstr_w(ext->link_name.Buffer));
 
             return rc;
         }

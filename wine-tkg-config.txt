@@ -1,9 +1,9 @@
-# Last proton_dist configuration - Sat Feb 27 06:12:13 PM CET 2021 :
+# Last proton_dist configuration - Mon Mar 15 03:29:56 PM CET 2021 :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 6.3.r0.g0f972e22479
-Using wine-staging patchset (version 6.3.r0.ge83fdffe)
+Wine (plain) version: 6.4.r0.g4336ed0b84b
+Using wine-staging patchset (version 6.4.r0.g7ec998e1)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
@@ -17,7 +17,7 @@ childwindow.patch -- ( Applied child window for vk patch )
 steam.patch -- ( Applied steam crossover hack )
 CSMT-toggle.patch -- ( Applied CSMT toggle logic patch )
 
-Staging overrides, if any: -W ntdll-NtAlertThreadByThreadId -W dinput-SetActionMap-genre -W dinput-axis-recalc -W dinput-joy-mappings -W dinput-reconnect-joystick -W dinput-remap-joystick
+Staging overrides, if any: -W ntdll-NtAlertThreadByThreadId
 
 assettocorsa_hud_perf-proton.patch -- ( Applied Assetto Corsa HUD performance fix (proton edition) )
 mk11.patch -- ( Applied Mortal Kombat 11 fix )
@@ -32,8 +32,6 @@ proton-tkg-staging.patch -- ( Using Steam-specific Proton-tkg patches (staging) 
 proton-steam-bits.patch -- ( Using Steam-specific Proton-tkg patches (staging) 3/3 )
 proton-pa-staging.patch -- ( Enable Proton's PA additions )
 proton-cpu-topology-overrides.patch -- ( Enable Proton's CPU topology override support )
-proton-sdl-joy.patch -- ( Enable SDL Joystick support (from Proton) )
-proton-gamepad-additions-exp.patch -- ( Enable xinput hacks and other gamepad additions (from Proton exp) )
 SteamVR support disabled as it requires proton_fs_hack
 msvcrt_nativebuiltin.patch -- ( Enforce msvcrt Dlls to native then builtin (from Proton) )
 josh-flat-theme.patch -- ( Add Josh's better-theme )
