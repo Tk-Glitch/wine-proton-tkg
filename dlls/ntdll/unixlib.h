@@ -25,8 +25,19 @@
 
 struct _DISPATCHER_CONTEXT;
 
+enum loadorder
+{
+    LO_INVALID,
+    LO_DISABLED,
+    LO_NATIVE,
+    LO_BUILTIN,
+    LO_NATIVE_BUILTIN,  /* native then builtin */
+    LO_BUILTIN_NATIVE,  /* builtin then native */
+    LO_DEFAULT          /* nothing specified, use default strategy */
+};
+
 /* increment this when you change the function table */
-#define NTDLL_UNIXLIB_VERSION 115
+#define NTDLL_UNIXLIB_VERSION 119
 
 struct unix_funcs
 {
@@ -74,12 +85,13 @@ struct unix_funcs
 
     /* loader functions */
     NTSTATUS      (CDECL *load_so_dll)( UNICODE_STRING *nt_name, void **module );
-    NTSTATUS      (CDECL *load_builtin_dll)( UNICODE_STRING *name, void **module, void **unix_entry,
+    NTSTATUS      (CDECL *load_builtin_dll)( UNICODE_STRING *name, void **module,
                                              SECTION_IMAGE_INFORMATION *image_info, BOOL prefer_native );
-    NTSTATUS      (CDECL *unload_builtin_dll)( void *module );
     void          (CDECL *init_builtin_dll)( void *module );
+    NTSTATUS      (CDECL *init_unix_lib)( void *module, DWORD reason, const void *ptr_in, void *ptr_out );
     NTSTATUS      (CDECL *unwind_builtin_dll)( ULONG type, struct _DISPATCHER_CONTEXT *dispatch,
                                                CONTEXT *context );
+    enum loadorder (CDECL *get_load_order)( const UNICODE_STRING *nt_name );
 
     /* debugging functions */
     unsigned char (CDECL *dbg_get_channel_flags)( struct __wine_debug_channel *channel );
@@ -90,6 +102,7 @@ struct unix_funcs
 
     /* steamclient HACK */
     void          (CDECL *steamclient_setup_trampolines)( HMODULE src_mod, HMODULE tgt_mod );
+    void          (CDECL *set_unix_env)( const char *var, const char *val );
 };
 
 #endif /* __NTDLL_UNIXLIB_H */

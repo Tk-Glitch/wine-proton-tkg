@@ -35,7 +35,7 @@
 #define NUM_THREADS 4
 #define MAPPING_SIZE 0x100000
 
-static HINSTANCE hkernel32, hntdll;
+static HINSTANCE hkernel32, hkernelbase, hntdll;
 static SYSTEM_INFO si;
 static UINT   (WINAPI *pGetWriteWatch)(DWORD,LPVOID,SIZE_T,LPVOID*,ULONG_PTR*,ULONG*);
 static UINT   (WINAPI *pResetWriteWatch)(LPVOID,SIZE_T);
@@ -50,6 +50,7 @@ static ULONG  (WINAPI *pRtlRemoveVectoredExceptionHandler)(PVOID);
 static BOOL   (WINAPI *pGetProcessDEPPolicy)(HANDLE, LPDWORD, PBOOL);
 static BOOL   (WINAPI *pIsWow64Process)(HANDLE, PBOOL);
 static NTSTATUS (WINAPI *pNtProtectVirtualMemory)(HANDLE, PVOID *, SIZE_T *, ULONG, ULONG *);
+static PVOID (WINAPI *pVirtualAllocFromApp)(PVOID, SIZE_T, DWORD, DWORD);
 
 /* ############################### */
 
@@ -458,6 +459,39 @@ static void test_VirtualAlloc(void)
     ok(GetLastError() == ERROR_INVALID_PARAMETER, "got %d, expected ERROR_INVALID_PARAMETER\n", GetLastError());
 
     ok(VirtualFree(addr1, 0, MEM_RELEASE), "VirtualFree failed\n");
+}
+
+static void test_VirtualAllocFromApp(void)
+{
+    void *p;
+    BOOL ret;
+    if (!pVirtualAllocFromApp)
+    {
+        win_skip("VirtualAllocFromApp is not available.\n");
+        return;
+    }
+
+    p = GetProcAddress(hkernel32, "VirtualAllocFromApp");
+    ok(!p, "Found VirtualAllocFromApp in kernel32.dll.\n");
+
+    SetLastError(0xdeadbeef);
+    p = pVirtualAllocFromApp(NULL, 0x1000, MEM_RESERVE, PAGE_READWRITE);
+    ok(p && GetLastError() == 0xdeadbeef, "Got unexpected mem %p, GetLastError() %u.\n", p, GetLastError());
+    ret = VirtualFree(p, 0, MEM_RELEASE);
+    ok(ret, "Got unexpected ret %#x, GetLastError() %u.\n", ret, GetLastError());
+
+    SetLastError(0xdeadbeef);
+    p = pVirtualAllocFromApp(NULL, 0x1000, MEM_RESERVE, PAGE_EXECUTE);
+    ok(!p && GetLastError() == ERROR_INVALID_PARAMETER, "Got unexpected mem %p, GetLastError() %u.\n",
+            p, GetLastError());
+    SetLastError(0xdeadbeef);
+    p = pVirtualAllocFromApp(NULL, 0x1000, MEM_RESERVE, PAGE_EXECUTE_READ);
+    ok(!p && GetLastError() == ERROR_INVALID_PARAMETER, "Got unexpected mem %p, GetLastError() %u.\n",
+            p, GetLastError());
+    SetLastError(0xdeadbeef);
+    p = pVirtualAllocFromApp(NULL, 0x1000, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    ok(!p && GetLastError() == ERROR_INVALID_PARAMETER, "Got unexpected mem %p, GetLastError() %u.\n",
+            p, GetLastError());
 }
 
 static void test_MapViewOfFile(void)
@@ -1348,7 +1382,6 @@ static void test_NtAreMappedFilesTheSame(void)
     ptr = MapViewOfFile( mapping, FILE_MAP_READ, 0, 0, 0 );
     ok( ptr != NULL, "MapViewOfFile FILE_MAP_READ error %u\n", GetLastError() );
     status = pNtAreMappedFilesTheSame( ptr, GetModuleHandleA("kernel32.dll") );
-    todo_wine
     ok( status == STATUS_SUCCESS, "NtAreMappedFilesTheSame returned %x\n", status );
 
     file2 = CreateFileA( path, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, 0 );
@@ -2126,15 +2159,61 @@ static void test_write_watch(void)
     ok( count == 1, "wrong count %lu\n", count );
     ok( results[0] == base + 5*pagesize, "wrong result %p\n", results[0] );
 
+    ret = pResetWriteWatch( base, size );
+    ok( !ret, "pResetWriteWatch failed %u\n", GetLastError() );
+
+    ret = VirtualProtect( base, 6*pagesize, PAGE_READWRITE, &old_prot );
+    ok( ret, "VirtualProtect failed error %u\n", GetLastError() );
+    ok( old_prot == PAGE_NOACCESS, "wrong old prot %x\n", old_prot );
+
+    base[3*pagesize + 200] = 3;
+    base[5*pagesize + 200] = 3;
+
     ret = VirtualFree( base, size, MEM_DECOMMIT );
     ok( ret, "VirtualFree failed %u\n", GetLastError() );
 
     count = 64;
     ret = pGetWriteWatch( 0, base, size, results, &count, &pagesize );
     ok( !ret, "GetWriteWatch failed %u\n", GetLastError() );
-    ok( count == 1 || broken(count == 0), /* win98 */
-        "wrong count %lu\n", count );
-    if (count) ok( results[0] == base + 5*pagesize, "wrong result %p\n", results[0] );
+    ok( !count, "wrong count %lu\n", count );
+
+    base = VirtualAlloc( base, size, MEM_COMMIT, PAGE_READWRITE );
+    ok(!!base, "VirtualAlloc failed.\n");
+
+    count = 64;
+    ret = pGetWriteWatch( 0, base, size, results, &count, &pagesize );
+    ok( !ret, "GetWriteWatch failed %u\n", GetLastError() );
+    ok( !count, "wrong count %lu\n", count );
+
+    base[3*pagesize + 200] = 3;
+    ret = VirtualProtect( base, 6*pagesize, PAGE_READWRITE, &old_prot );
+    ok( ret, "VirtualProtect failed error %u\n", GetLastError() );
+    ok( old_prot == PAGE_READWRITE, "wrong old prot %x\n", old_prot );
+
+    base[5*pagesize + 200] = 3;
+    count = 64;
+    ret = pGetWriteWatch( 0, base, size, results, &count, &pagesize );
+    ok( !ret, "GetWriteWatch failed %u\n", GetLastError() );
+    ok( count == 2, "wrong count %lu\n", count );
+    ok( results[0] == base + 3*pagesize && results[1] == base + 5*pagesize, "wrong result %p\n", results[0] );
+
+    ret = VirtualFree( base, size, MEM_DECOMMIT );
+    ok( ret, "VirtualFree failed %u\n", GetLastError() );
+
+    count = 64;
+    ret = pGetWriteWatch( 0, base, size, results, &count, &pagesize );
+    ok( !ret, "GetWriteWatch failed %u\n", GetLastError() );
+    todo_wine ok( count == 1, "wrong count %lu\n", count );
+    ok( results[0] == base + 3*pagesize, "wrong result %p\n", results[0] );
+
+    base = VirtualAlloc( base, size, MEM_COMMIT, PAGE_READWRITE );
+    ok(!!base, "VirtualAlloc failed.\n");
+
+    count = 64;
+    ret = pGetWriteWatch( 0, base, size, results, &count, &pagesize );
+    ok( !ret, "GetWriteWatch failed %u\n", GetLastError() );
+    todo_wine ok( count == 1, "wrong count %lu\n", count );
+    ok( results[0] == base + 3*pagesize, "wrong result %p\n", results[0] );
 
     VirtualFree( base, 0, MEM_RELEASE );
 }
@@ -4468,6 +4547,7 @@ START_TEST(virtual)
     }
 
     hkernel32 = GetModuleHandleA("kernel32.dll");
+    hkernelbase = GetModuleHandleA("kernelbase.dll");
     hntdll    = GetModuleHandleA("ntdll.dll");
 
     pGetWriteWatch = (void *) GetProcAddress(hkernel32, "GetWriteWatch");
@@ -4482,6 +4562,7 @@ START_TEST(virtual)
     pRtlAddVectoredExceptionHandler = (void *)GetProcAddress( hntdll, "RtlAddVectoredExceptionHandler" );
     pRtlRemoveVectoredExceptionHandler = (void *)GetProcAddress( hntdll, "RtlRemoveVectoredExceptionHandler" );
     pNtProtectVirtualMemory = (void *)GetProcAddress( hntdll, "NtProtectVirtualMemory" );
+    pVirtualAllocFromApp = (void *)GetProcAddress( hkernelbase, "VirtualAllocFromApp" );
 
     GetSystemInfo(&si);
     trace("system page size %#x\n", si.dwPageSize);
@@ -4497,6 +4578,7 @@ START_TEST(virtual)
     test_VirtualProtect();
     test_VirtualAllocEx();
     test_VirtualAlloc();
+    test_VirtualAllocFromApp();
     test_MapViewOfFile();
     test_NtAreMappedFilesTheSame();
     test_CreateFileMapping();

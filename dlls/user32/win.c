@@ -2130,47 +2130,44 @@ HWND WINAPI GetDesktopWindow(void)
         lstrcpyW( cmdline, app );
         lstrcatW( cmdline, L" /desktop" );
 
+        EnterCriticalSection( &desktop_section);
+
         /* HACK: Unset LD_PRELOAD before executing explorer.exe to disable buggy gameoverlayrenderer.so
-        * It's not going to work through the CreateProcessW env parameter, as it will not be used for the loader execv.
-        */
-        if (have_libpng())
+         * It's not going to work through the CreateProcessW env parameter, as it will not be used for the loader execv.
+         */
+        if ((ld_preload = getenv("LD_PRELOAD")))
         {
-            EnterCriticalSection( &desktop_section);
+            static char const gorso[] = "gameoverlayrenderer.so";
+            static unsigned int gorso_len = ARRAY_SIZE(gorso) - 1;
+            char *env, *next, *tmp;
 
-            if ((ld_preload = getenv("LD_PRELOAD")))
+            env = HeapAlloc(GetProcessHeap(), 0, strlen(ld_preload) + 1);
+            strcpy(env, ld_preload);
+
+            tmp = env;
+            do
             {
-                static char const gorso[] = "gameoverlayrenderer.so";
-                static unsigned int gorso_len = ARRAY_SIZE(gorso) - 1;
-                char *env, *next, *tmp;
+                if (!(next = strchr(tmp, ':')))
+                    next = tmp + strlen(tmp);
 
-                env = HeapAlloc(GetProcessHeap(), 0, strlen(ld_preload) + 1);
-                strcpy(env, ld_preload);
-
-                tmp = env;
-                do
+                if (next - tmp >= gorso_len &&
+                    strncmp(next - gorso_len, gorso, gorso_len) == 0)
                 {
-                    if (!(next = strchr(tmp, ':')))
-                        next = tmp + strlen(tmp);
-
-                    if (next - tmp >= gorso_len &&
-                        strncmp(next - gorso_len, gorso, gorso_len) == 0)
-                    {
-                        if (*next)
-                            memmove(tmp, next + 1, strlen(next));
-                        else
-                            *tmp = 0;
-                        next = tmp;
-                    }
+                    if (*next)
+                        memmove(tmp, next + 1, strlen(next));
                     else
-                    {
-                        tmp = next + 1;
-                    }
+                        *tmp = 0;
+                    next = tmp;
                 }
-                while (*next);
-
-                png_funcs->hack_unix_setenv("LD_PRELOAD", env, 1);
-                HeapFree(GetProcessHeap(), 0, env);
+                else
+                {
+                    tmp = next + 1;
+                }
             }
+            while (*next);
+
+            __wine_set_unix_env("LD_PRELOAD", env);
+            HeapFree(GetProcessHeap(), 0, env);
         }
 
         Wow64DisableWow64FsRedirection( &redir );
@@ -2186,12 +2183,9 @@ HWND WINAPI GetDesktopWindow(void)
         Wow64RevertWow64FsRedirection( redir );
 
         /* HACK: Restore the previous value, just in case */
-        if (have_libpng())
-        {
-            if (ld_preload) png_funcs->hack_unix_setenv("LD_PRELOAD", ld_preload, 1);
+        if (ld_preload) __wine_set_unix_env("LD_PRELOAD", ld_preload);
 
-            LeaveCriticalSection( &desktop_section );
-        }
+        LeaveCriticalSection( &desktop_section );
 
         SERVER_START_REQ( get_desktop_window )
         {
