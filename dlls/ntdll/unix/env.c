@@ -64,6 +64,9 @@ WINE_DEFAULT_DEBUG_CHANNEL(environ);
 
 USHORT *uctable = NULL, *lctable = NULL;
 SIZE_T startup_info_size = 0;
+BOOL is_prefix_bootstrap = FALSE;
+
+static const WCHAR bootstrapW[] = {'W','I','N','E','B','O','O','T','S','T','R','A','P','M','O','D','E'};
 
 int main_argc = 0;
 char **main_argv = NULL;
@@ -1212,6 +1215,18 @@ static WCHAR *find_env_var( WCHAR *env, SIZE_T size, const WCHAR *name, SIZE_T n
     return NULL;
 }
 
+static WCHAR *get_env_var( WCHAR *env, SIZE_T size, const WCHAR *name, SIZE_T namelen )
+{
+    WCHAR *ret = NULL, *var = find_env_var( env, size, name, namelen );
+
+    if (var)
+    {
+        var += namelen + 1;  /* skip name */
+        if ((ret = malloc( (wcslen(var) + 1) * sizeof(WCHAR) ))) wcscpy( ret, var );
+    }
+    return ret;
+}
+
 /* set an environment variable, replacing it if it exists */
 static void set_env_var( WCHAR **env, SIZE_T *pos, SIZE_T *size,
                          const WCHAR *name, SIZE_T namelen, const WCHAR *value )
@@ -1907,42 +1922,50 @@ static inline DWORD append_string( void **ptr, const RTL_USER_PROCESS_PARAMETERS
  */
 static RTL_USER_PROCESS_PARAMETERS *build_initial_params(void)
 {
+    static const WCHAR valueW[] = {'1',0};
     static const WCHAR pathW[] = {'P','A','T','H'};
     RTL_USER_PROCESS_PARAMETERS *params = NULL;
-    SECTION_IMAGE_INFORMATION image_info;
     SIZE_T size, env_pos, env_size;
-    WCHAR *dst, *image, *cmdline, *p, *path = NULL;
+    WCHAR *dst, *image, *cmdline, *path, *bootstrap;
     WCHAR *env = get_initial_environment( &env_pos, &env_size );
     WCHAR *curdir = get_initial_directory();
     void *module = NULL;
     NTSTATUS status;
 
     /* store the initial PATH value */
-    if ((p = find_env_var( env, env_pos, pathW, 4 )))
-    {
-        path = malloc( (wcslen(p + 5) + 1) * sizeof(WCHAR) );
-        wcscpy( path, p + 5 );
-    }
+    path = get_env_var( env, env_pos, pathW, 4 );
     add_dynamic_environment( &env, &env_pos, &env_size );
     add_registry_environment( &env, &env_pos, &env_size );
+    bootstrap = get_env_var( env, env_pos, bootstrapW, ARRAY_SIZE(bootstrapW) );
+    set_env_var( &env, &env_pos, &env_size, bootstrapW, ARRAY_SIZE(bootstrapW), valueW );
+    is_prefix_bootstrap = TRUE;
     env[env_pos] = 0;
     run_wineboot( env, env_pos );
 
     /* reload environment now that wineboot has run */
     set_env_var( &env, &env_pos, &env_size, pathW, 4, path );  /* reset PATH */
     free( path );
+    set_env_var( &env, &env_pos, &env_size, bootstrapW, ARRAY_SIZE(bootstrapW), bootstrap );
+    is_prefix_bootstrap = !!bootstrap;
+    free( bootstrap );
     add_registry_environment( &env, &env_pos, &env_size );
     env[env_pos++] = 0;
 
-    status = load_main_exe( NULL, main_argv[1], curdir, &image, &module, &image_info );
-    if (!status && image_info.Machine != current_machine) status = STATUS_INVALID_IMAGE_FORMAT;
+    status = load_main_exe( NULL, main_argv[1], curdir, &image, &module );
+    if (!status)
+    {
+        if (main_image_info.ImageCharacteristics & IMAGE_FILE_DLL) status = STATUS_INVALID_IMAGE_FORMAT;
+        if (main_image_info.ImageFlags & IMAGE_FLAGS_ComPlusNativeReady)
+            main_image_info.Machine = native_machine;
+        if (main_image_info.Machine != current_machine) status = STATUS_INVALID_IMAGE_FORMAT;
+    }
 
     if (status)  /* try launching it through start.exe */
     {
         static const char *args[] = { "start.exe", "/exec" };
         free( image );
         if (module) NtUnmapViewOfSection( GetCurrentProcess(), module );
-        load_start_exe( &image, &module, &image_info );
+        load_start_exe( &image, &module );
         prepend_argv( args, 2 );
     }
     else rebuild_argv();
@@ -2003,7 +2026,6 @@ void init_startup_info(void)
     NTSTATUS status;
     SIZE_T size, info_size, env_size, env_pos;
     RTL_USER_PROCESS_PARAMETERS *params = NULL;
-    SECTION_IMAGE_INFORMATION image_info;
     startup_info_t *info;
 
     if (!startup_info_size)
@@ -2028,6 +2050,7 @@ void init_startup_info(void)
     memcpy( env, (char *)info + info_size, env_size * sizeof(WCHAR) );
     env_pos = env_size - 1;
     add_dynamic_environment( &env, &env_pos, &env_size );
+    is_prefix_bootstrap = !!find_env_var( env, env_pos, bootstrapW, ARRAY_SIZE(bootstrapW) );
     env[env_pos++] = 0;
 
     size = (sizeof(*params)
@@ -2096,8 +2119,8 @@ void init_startup_info(void)
     free( info );
     NtCurrentTeb()->Peb->ProcessParameters = params;
 
-    status = load_main_exe( params->ImagePathName.Buffer, NULL, params->CommandLine.Buffer,
-                            &image, &module, &image_info );
+    status = load_main_exe( params->ImagePathName.Buffer, NULL,
+                            params->CommandLine.Buffer, &image, &module );
     if (status)
     {
         MESSAGE( "wine: failed to start %s\n", debugstr_us(&params->ImagePathName) );

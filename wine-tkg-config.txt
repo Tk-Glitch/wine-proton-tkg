@@ -1,15 +1,18 @@
-# Last proton_dist configuration - Sun Nov 21 07:03:13 PM CET 2021 :
+# Last proton_dist configuration - Sun Nov 21 07:04:33 PM CET 2021 :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 6.8.r0.g99e47361a37
-Using wine-staging patchset (version 6.8.r0.g0f00e37c)
+Wine (plain) version: 6.9.r0.g9561af9a7d8
+Using wine-staging patchset (version 6.9.r0.gcfe44f6d)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
 
 Done applying reverting hotfixes (if any) - list available in prepare.log
 
+Applied reverting hotfix staging-pulseaudio-reverts.mystagingrevert
+Applied reverting hotfix staging-server-default-integrity.mystagingrevert
+Applied hotfix staging-reenable-pulse.mystagingpatch
 Applied hotfix protonify_stg_syscall_emu-001.mystagingpatch
 plasma_systray_fix.patch -- ( Applied plasma 5 systray fix )
 steam.patch -- ( Applied steam crossover hack )
@@ -24,22 +27,20 @@ fsync-unix-staging-10ca57f.patch -- ( Applied fsync, an experimental replacement
 server_Abort_waiting_on_a_completion_port_when_closing_it.patch -- ( Added Abort waiting on a completion port when closing it Proton patch )
 fsync_futex2.patch -- ( Add futex2 support to fsync )
 
-valve_proton_fullscreen_hack-staging-7f18df4.patch -- ( Applied Proton fullscreen hack patch (7f18df4) )
+valve_proton_fullscreen_hack-staging-211da18.patch -- ( Applied Proton fullscreen hack patch (211da18) )
 LAA-unix-staging-ac3ec2d.patch -- ( Applied large address aware override support )
 proton-tkg-steamclient-swap-c2d84da.patch -- ( Applied steamclient substitution hack )
 
-proton-tkg-staging-21f5597.patch -- ( Using Steam-specific Proton-tkg patches (staging-21f5597) 2/2 )
+proton-tkg-staging-5c009c1.patch -- ( Using Steam-specific Proton-tkg patches (staging-5c009c1) 2/2 )
 proton-steam-bits-23d2d0c.patch -- ( Using Steam-specific Proton-tkg patches (staging) 3/3 )
-proton-pa-staging.patch -- ( Enable Proton's PA additions )
 msvcrt_nativebuiltin.patch -- ( Enforce msvcrt Dlls to native then builtin (from Proton) )
 proton-bcrypt-staging-b3cd21c.patch -- ( Using Proton Bcrypt patches )
 josh-flat-theme.patch -- ( Add Josh's better-theme )
 proton-win10-default-staging-d02d502.patch -- ( Enforce win10 as default wine version (staging) )
 dxvk_config_dxgi_support.patch -- ( Add support for dxvk_config library to Wine's dxgi )
 
-Applied reverting hotfix revert_steamclient_breaker9.myrevert
 Applied hotfix imm32-com-initialization_no_net_active_window.mypatch
-Applied hotfix virtual_alloc_remi.mypatch
+Applied hotfix virtual_alloc_remi2.mypatch
 Applied hotfix a608ef1.mypatch
 Applied your own patch 0001-ntdll-Use-kernel-soft-dirty-flags-for-write-watches-.mypatch
 Applied your own patch FinalFantasyXVHack.mypatch

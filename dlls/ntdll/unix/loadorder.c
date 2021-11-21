@@ -376,7 +376,7 @@ void set_load_order_app_name( const WCHAR *app_name )
  * Return the loadorder of a module.
  * The system directory and '.dll' extension is stripped from the path.
  */
-enum loadorder CDECL get_load_order( const UNICODE_STRING *nt_name )
+enum loadorder get_load_order( const UNICODE_STRING *nt_name )
 {
     static const WCHAR prefixW[] = {'\\','?','?','\\'};
     enum loadorder ret = LO_INVALID;

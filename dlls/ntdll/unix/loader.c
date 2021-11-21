@@ -140,6 +140,7 @@ const char *build_dir = NULL;
 const char *config_dir = NULL;
 const char **dll_paths = NULL;
 const char *user_name = NULL;
+SECTION_IMAGE_INFORMATION main_image_info = { NULL };
 static HMODULE ntdll_module;
 static const IMAGE_EXPORT_DIRECTORY *ntdll_exports;
 
@@ -1400,21 +1401,6 @@ done:
 
 
 /***********************************************************************
- *           load_builtin_dll
- */
-static NTSTATUS CDECL load_builtin_dll( UNICODE_STRING *nt_name, void **module,
-                                        SECTION_IMAGE_INFORMATION *image_info, BOOL prefer_native )
-{
-    SIZE_T size;
-    NTSTATUS status;
-
-    status = find_builtin_dll( nt_name, module, &size, image_info, current_machine, prefer_native );
-    if (status == STATUS_IMAGE_NOT_AT_BASE) status = STATUS_SUCCESS;
-    return status;
-}
-
-
-/***********************************************************************
  *           load_builtin
  *
  * Load the builtin dll if specified by load order configuration.
@@ -1506,11 +1492,11 @@ const WCHAR *get_machine_wow64_dir( WORD machine )
  */
 BOOL is_builtin_path( const UNICODE_STRING *path, WORD *machine )
 {
-    BOOL is_prefix_bootstrap;
     unsigned int i, len = path->Length / sizeof(WCHAR), dirlen;
     const WCHAR *sysdir, *p = path->Buffer;
-    struct stat st;
-    char *ntdll;
+
+    /* only fake builtin existence during prefix bootstrap */
+    if (!is_prefix_bootstrap) return FALSE;
 
     for (i = 0; i < supported_machines_count; i++)
     {
@@ -1579,7 +1565,7 @@ static NTSTATUS open_main_image( WCHAR *image, void **module, SECTION_IMAGE_INFO
  *           load_main_exe
  */
 NTSTATUS load_main_exe( const WCHAR *dos_name, const char *unix_name, const WCHAR *curdir,
-                        WCHAR **image, void **module, SECTION_IMAGE_INFORMATION *image_info )
+                        WCHAR **image, void **module )
 {
     enum loadorder loadorder = LO_INVALID;
     UNICODE_STRING nt_name;
@@ -1596,7 +1582,7 @@ NTSTATUS load_main_exe( const WCHAR *dos_name, const char *unix_name, const WCHA
         if ((status = unix_to_nt_file_name( unix_name, image ))) goto failed;
         init_unicode_string( &nt_name, *image );
         loadorder = get_load_order( &nt_name );
-        status = open_main_image( *image, module, image_info, loadorder );
+        status = open_main_image( *image, module, &main_image_info, loadorder );
         if (status != STATUS_DLL_NOT_FOUND) return status;
         free( *image );
     }
@@ -1616,13 +1602,13 @@ NTSTATUS load_main_exe( const WCHAR *dos_name, const char *unix_name, const WCHA
     init_unicode_string( &nt_name, *image );
     if (loadorder == LO_INVALID) loadorder = get_load_order( &nt_name );
 
-    status = open_main_image( *image, module, image_info, loadorder );
+    status = open_main_image( *image, module, &main_image_info, loadorder );
     if (status != STATUS_DLL_NOT_FOUND) return status;
 
     /* if path is in system dir, we can load the builtin even if the file itself doesn't exist */
     if (loadorder != LO_NATIVE && is_builtin_path( &nt_name, &machine ))
     {
-        status = find_builtin_dll( &nt_name, module, &size, image_info, machine, FALSE );
+        status = find_builtin_dll( &nt_name, module, &size, &main_image_info, machine, FALSE );
         if (status != STATUS_DLL_NOT_FOUND) return status;
     }
     if (!contains_path) return STATUS_DLL_NOT_FOUND;
@@ -1640,7 +1626,7 @@ failed:
  *
  * Load start.exe as main image.
  */
-NTSTATUS load_start_exe( WCHAR **image, void **module, SECTION_IMAGE_INFORMATION *image_info )
+NTSTATUS load_start_exe( WCHAR **image, void **module )
 {
     static const WCHAR startW[] = {'s','t','a','r','t','.','e','x','e',0};
     UNICODE_STRING nt_name;
@@ -1651,7 +1637,7 @@ NTSTATUS load_start_exe( WCHAR **image, void **module, SECTION_IMAGE_INFORMATION
     wcscpy( *image, get_machine_wow64_dir( current_machine ));
     wcscat( *image, startW );
     init_unicode_string( &nt_name, *image );
-    status = find_builtin_dll( &nt_name, module, &size, image_info, current_machine, FALSE );
+    status = find_builtin_dll( &nt_name, module, &size, &main_image_info, current_machine, FALSE );
     if (status)
     {
         MESSAGE( "wine: failed to load start.exe: %x\n", status );
@@ -1941,11 +1927,9 @@ static struct unix_funcs unix_funcs =
     ntdll_tan,
     virtual_release_address_space,
     load_so_dll,
-    load_builtin_dll,
     init_builtin_dll,
     init_unix_lib,
     unwind_builtin_dll,
-    get_load_order,
     __wine_dbg_get_channel_flags,
     __wine_dbg_strdup,
     __wine_dbg_output,
@@ -1981,7 +1965,6 @@ static void hacks_init(void)
 static void start_main_thread(void)
 {
     NTSTATUS status;
-    INITIAL_TEB stack;
     TEB *teb = virtual_alloc_first_teb();
 
     signal_init_threading();
@@ -2002,10 +1985,7 @@ static void start_main_thread(void)
     if (p___wine_main_argv) *p___wine_main_argv = main_argv;
     if (p___wine_main_wargv) *p___wine_main_wargv = main_wargv;
     set_load_order_app_name( main_wargv[0] );
-    virtual_alloc_thread_stack( &stack, is_win64 ? 0x7fffffff : 0, 0, 0, NULL );
-    teb->Tib.StackBase = stack.StackBase;
-    teb->Tib.StackLimit = stack.StackLimit;
-    teb->DeallocationStack = stack.DeallocationStack;
+    init_thread_stack( teb, is_win64 ? 0x7fffffff : 0, 0, 0, NULL );
     NtCreateKeyedEvent( &keyed_event, GENERIC_READ | GENERIC_WRITE, NULL, 0 );
     load_ntdll();
     status = p__wine_set_unix_funcs( NTDLL_UNIXLIB_VERSION, &unix_funcs );
