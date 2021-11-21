@@ -27,6 +27,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <sys/types.h>
 #ifdef HAVE_VALGRIND_MEMCHECK_H
 #include <valgrind/memcheck.h>
 #endif
@@ -537,9 +538,8 @@ struct security_descriptor *default_get_sd( struct object *obj )
     return obj->sd;
 }
 
-struct security_descriptor *set_sd_from_token_internal( const struct security_descriptor *sd,
-                                                        const struct security_descriptor *old_sd,
-                                                        unsigned int set_info, struct token *token )
+int set_sd_defaults_from_token( struct object *obj, const struct security_descriptor *sd,
+                                unsigned int set_info, struct token *token )
 {
     struct security_descriptor new_sd, *new_sd_ptr;
     int present;
@@ -548,6 +548,8 @@ struct security_descriptor *set_sd_from_token_internal( const struct security_de
     ACL *replaced_sacl = NULL;
     char *ptr;
 
+    if (!set_info) return 1;
+
     new_sd.control = sd->control & ~SE_SELF_RELATIVE;
 
     if (set_info & OWNER_SECURITY_INFORMATION && sd->owner_len)
@@ -555,10 +557,10 @@ struct security_descriptor *set_sd_from_token_internal( const struct security_de
         owner = sd_get_owner( sd );
         new_sd.owner_len = sd->owner_len;
     }
-    else if (old_sd && old_sd->owner_len)
+    else if (obj->sd && obj->sd->owner_len)
     {
-        owner = sd_get_owner( old_sd );
-        new_sd.owner_len = old_sd->owner_len;
+        owner = sd_get_owner( obj->sd );
+        new_sd.owner_len = obj->sd->owner_len;
     }
     else if (token)
     {
@@ -572,10 +574,10 @@ struct security_descriptor *set_sd_from_token_internal( const struct security_de
         group = sd_get_group( sd );
         new_sd.group_len = sd->group_len;
     }
-    else if (old_sd && old_sd->group_len)
+    else if (obj->sd && obj->sd->group_len)
     {
-        group = sd_get_group( old_sd );
-        new_sd.group_len = old_sd->group_len;
+        group = sd_get_group( obj->sd );
+        new_sd.group_len = obj->sd->group_len;
     }
     else if (token)
     {
@@ -593,20 +595,20 @@ struct security_descriptor *set_sd_from_token_internal( const struct security_de
     else if (set_info & LABEL_SECURITY_INFORMATION && present)
     {
         const ACL *old_sacl = NULL;
-        if (old_sd && old_sd->control & SE_SACL_PRESENT) old_sacl = sd_get_sacl( old_sd, &present );
-        if (!(replaced_sacl = replace_security_labels( old_sacl, sacl ))) return NULL;
+        if (obj->sd && obj->sd->control & SE_SACL_PRESENT) old_sacl = sd_get_sacl( obj->sd, &present );
+        if (!(replaced_sacl = replace_security_labels( old_sacl, sacl ))) return 0;
         new_sd.control |= SE_SACL_PRESENT;
         new_sd.sacl_len = replaced_sacl->AclSize;
         sacl = replaced_sacl;
     }
     else
     {
-        if (old_sd) sacl = sd_get_sacl( old_sd, &present );
+        if (obj->sd) sacl = sd_get_sacl( obj->sd, &present );
 
-        if (old_sd && present)
+        if (obj->sd && present)
         {
             new_sd.control |= SE_SACL_PRESENT;
-            new_sd.sacl_len = old_sd->sacl_len;
+            new_sd.sacl_len = obj->sd->sacl_len;
         }
         else
             new_sd.sacl_len = 0;
@@ -620,12 +622,12 @@ struct security_descriptor *set_sd_from_token_internal( const struct security_de
     }
     else
     {
-        if (old_sd) dacl = sd_get_dacl( old_sd, &present );
+        if (obj->sd) dacl = sd_get_dacl( obj->sd, &present );
 
-        if (old_sd && present)
+        if (obj->sd && present)
         {
             new_sd.control |= SE_DACL_PRESENT;
-            new_sd.dacl_len = old_sd->dacl_len;
+            new_sd.dacl_len = obj->sd->dacl_len;
         }
         else if (token)
         {
@@ -641,7 +643,7 @@ struct security_descriptor *set_sd_from_token_internal( const struct security_de
     if (!ptr)
     {
         free( replaced_sacl );
-        return NULL;
+        return 0;
     }
     new_sd_ptr = (struct security_descriptor*)ptr;
 
@@ -656,25 +658,9 @@ struct security_descriptor *set_sd_from_token_internal( const struct security_de
     memcpy( ptr, dacl, new_sd.dacl_len );
 
     free( replaced_sacl );
-    return new_sd_ptr;
-}
-
-int set_sd_defaults_from_token( struct object *obj, const struct security_descriptor *sd,
-                                unsigned int set_info, struct token *token )
-{
-    struct security_descriptor *new_sd;
-
-    if (!set_info) return 1;
-
-    new_sd = set_sd_from_token_internal( sd, obj->sd, set_info, token );
-    if (new_sd)
-    {
-        free( obj->sd );
-        obj->sd = new_sd;
-        return 1;
-    }
-
-    return 0;
+    free( obj->sd );
+    obj->sd = new_sd_ptr;
+    return 1;
 }
 
 /** Set the security descriptor using the current primary token for defaults. */

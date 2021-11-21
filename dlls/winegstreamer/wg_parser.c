@@ -1309,53 +1309,7 @@ static void pad_added_cb(GstElement *element, GstPad *pad, gpointer user)
 
     if (!strcmp(name, "video/x-raw"))
     {
-        GstElement *capssetter, *deinterlace, *vconv, *flip, *videobox, *vconv2;
-
-        /* Hack?: Flatten down the colorimetry to default values, without
-         * actually modifying the video at all.
-         *
-         * We want to do color matrix conversions when converting from YUV to
-         * RGB or vice versa. We do *not* want to do color matrix conversions
-         * when converting YUV <-> YUV or RGB <-> RGB, because these are slow
-         * (it essentially means always using the slow path, never going through
-         * liborc). However, we have two videoconvert elements, and it's
-         * basically impossible to know what conversions each is going to do
-         * until caps are negotiated (without depending on some implementation
-         * details, and even then it'snot exactly trivial). And setting
-         * matrix-mode after caps are negotiated has no effect.
-         *
-         * Nor can we just retain colorimetry information the way we retain
-         * other caps values, because videoconvert automatically clears it if
-         * not doing passthrough. I think that this would only happen if we have
-         * to do a double conversion, but that is possible. Not likely, but I
-         * don't want to have to be the one to find out that there's still a
-         * game broken.
-         *
-         * [Note that we'd actually kind of like to retain colorimetry
-         * information, just in case it does ever become relevant to pass that
-         * on to the next DirectShow filter. Hence I think the correct solution
-         * for upstream is to get videoconvert to Not Do That.]
-         *
-         * So as a fallback solution, we force an identity transformation of
-         * the caps to those with a "default" color matrix—i.e. transform the
-         * caps, but not the data. We do this by *pre*pending a capssetter to
-         * the front of the chain, and we remove the matrix-mode setting for the
-         * videoconvert elements.
-         */
-        if (!(capssetter = gst_element_factory_make("capssetter", NULL)))
-        {
-            GST_ERROR("Failed to create capssetter, are %u-bit GStreamer \"good\" plugins installed?\n",
-                    8 * (int)sizeof(void *));
-            goto out;
-        }
-        gst_util_set_object_arg(G_OBJECT(capssetter), "join", "true");
-        /* Actually, this is invalid, but it causes videoconvert to use default
-         * colorimetry as a result. Yes, this is depending on undocumented
-         * implementation details. It's a hack.
-         *
-         * Sadly there doesn't seem to be a way to get capssetter to clear
-         * certain fields while leaving others untouched. */
-        gst_util_set_object_arg(G_OBJECT(capssetter), "caps", "video/x-raw,colorimetry=0:0:0:0");
+        GstElement *deinterlace, *vconv, *flip, *videobox, *vconv2;
 
         /* DirectShow can express interlaced video, but downstream filters can't
          * necessarily consume it. In particular, the video renderer can't. */
@@ -1367,9 +1321,6 @@ static void pad_added_cb(GstElement *element, GstPad *pad, gpointer user)
          * formats either. Add a videoconvert to swap color spaces. */
         if (!(vconv = create_element("videoconvert", "base")))
             goto out;
-
-        /* Let GStreamer choose a default number of threads. */
-        gst_util_set_object_arg(G_OBJECT(vconv), "n-threads", "0");
 
         /* GStreamer outputs RGB video top-down, but DirectShow expects bottom-up. */
         if (!(flip = create_element("videoflip", "good")))
@@ -1403,8 +1354,6 @@ static void pad_added_cb(GstElement *element, GstPad *pad, gpointer user)
         }
 
         /* The bin takes ownership of these elements. */
-        gst_bin_add(GST_BIN(parser->container), capssetter);
-        gst_element_sync_state_with_parent(capssetter);
         gst_bin_add(GST_BIN(parser->container), deinterlace);
         gst_element_sync_state_with_parent(deinterlace);
         gst_bin_add(GST_BIN(parser->container), vconv);
@@ -1419,7 +1368,6 @@ static void pad_added_cb(GstElement *element, GstPad *pad, gpointer user)
         gst_bin_add(GST_BIN(parser->container), vconv2);
         gst_element_sync_state_with_parent(vconv2);
 
-        gst_element_link(capssetter, deinterlace);
         gst_element_link(deinterlace, vconv);
         gst_element_link(vconv, flip);
         if (videobox)
@@ -1432,7 +1380,7 @@ static void pad_added_cb(GstElement *element, GstPad *pad, gpointer user)
             gst_element_link(flip, vconv2);
         }
 
-        stream->post_sink = gst_element_get_static_pad(capssetter, "sink");
+        stream->post_sink = gst_element_get_static_pad(deinterlace, "sink");
         stream->post_src = gst_element_get_static_pad(vconv2, "src");
         stream->flip = flip;
         stream->box = videobox;
@@ -2265,10 +2213,6 @@ static BOOL decodebin_parser_init_gst(struct wg_parser *parser)
     g_signal_connect(element, "autoplug-select", G_CALLBACK(autoplug_select_cb), parser);
     g_signal_connect(element, "no-more-pads", G_CALLBACK(no_more_pads_cb), parser);
 
-    g_object_set(G_OBJECT(element), "max-size-buffers", G_MAXUINT, NULL);
-    g_object_set(G_OBJECT(element), "max-size-time", G_MAXUINT64, NULL);
-    g_object_set(G_OBJECT(element), "max-size-bytes", G_MAXUINT, NULL);
-
     parser->their_sink = gst_element_get_static_pad(element, "sink");
 
     pthread_mutex_lock(&parser->mutex);
@@ -2648,22 +2592,6 @@ NTSTATUS CDECL __wine_init_unix_lib(HMODULE module, DWORD reason, const void *pt
         int argc = ARRAY_SIZE(args) - 1;
         char **argv = args;
         GError *err;
-        const char *e;
-
-        if ((e = getenv("WINE_GST_REGISTRY_DIR")))
-        {
-            char gst_reg[PATH_MAX];
-#if defined(__x86_64__)
-            const char *arch = "/registry.x86_64.bin";
-#elif defined(__i386__)
-            const char *arch = "/registry.i386.bin";
-#else
-#error Bad arch
-#endif
-            strcpy(gst_reg, e);
-            strcat(gst_reg, arch);
-            setenv("GST_REGISTRY_1_0", gst_reg, 1);
-        }
 
         if (!gst_init_check(&argc, &argv, &err))
         {

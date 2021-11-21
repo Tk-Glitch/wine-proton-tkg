@@ -1598,8 +1598,6 @@ struct get_handle_unix_name_request
 {
     struct request_header __header;
     obj_handle_t   handle;
-    int            nofollow;
-    char __pad_20[4];
 };
 struct get_handle_unix_name_reply
 {
@@ -1628,7 +1626,6 @@ enum server_fd_type
 {
     FD_TYPE_INVALID,
     FD_TYPE_FILE,
-    FD_TYPE_SYMLINK,
     FD_TYPE_DIR,
     FD_TYPE_SOCKET,
     FD_TYPE_SERIAL,
