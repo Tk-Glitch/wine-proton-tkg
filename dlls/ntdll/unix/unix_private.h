@@ -28,20 +28,22 @@
 #include "wine/list.h"
 
 #ifdef __i386__
-static const enum cpu_type client_cpu = CPU_x86;
 static const WORD current_machine = IMAGE_FILE_MACHINE_I386;
 #elif defined(__x86_64__)
-static const enum cpu_type client_cpu = CPU_x86_64;
 static const WORD current_machine = IMAGE_FILE_MACHINE_AMD64;
 #elif defined(__arm__)
-static const enum cpu_type client_cpu = CPU_ARM;
 static const WORD current_machine = IMAGE_FILE_MACHINE_ARMNT;
 #elif defined(__aarch64__)
-static const enum cpu_type client_cpu = CPU_ARM64;
 static const WORD current_machine = IMAGE_FILE_MACHINE_ARM64;
 #endif
+extern WORD native_machine DECLSPEC_HIDDEN;
 
 static const BOOL is_win64 = (sizeof(void *) > sizeof(int));
+
+static inline BOOL is_machine_64bit( WORD machine )
+{
+    return (machine == IMAGE_FILE_MACHINE_AMD64 || machine == IMAGE_FILE_MACHINE_ARM64);
+}
 
 struct debug_info
 {
@@ -77,16 +79,10 @@ static inline struct ntdll_thread_data *ntdll_get_thread_data(void)
 }
 
 static const SIZE_T page_size = 0x1000;
+static const SIZE_T teb_size = 0x3000;  /* TEB64 + TEB32 */
 static const SIZE_T signal_stack_mask = 0xffff;
-#ifdef _WIN64
-static const SIZE_T teb_size = 0x2000;
-static const SIZE_T teb_offset = 0;
-static const SIZE_T signal_stack_size = 0x10000 - 0x2000;
-#else
-static const SIZE_T teb_size = 0x3000;  /* TEB64 + TEB */
-static const SIZE_T teb_offset = 0x2000;
 static const SIZE_T signal_stack_size = 0x10000 - 0x3000;
-#endif
+static const LONG teb_offset = 0x2000;
 
 /* callbacks to PE ntdll from the Unix side */
 extern void     (WINAPI *pDbgUiRemoteBreakin)( void *arg ) DECLSPEC_HIDDEN;
@@ -123,7 +119,6 @@ extern const char **dll_paths DECLSPEC_HIDDEN;
 extern USHORT *uctable DECLSPEC_HIDDEN;
 extern USHORT *lctable DECLSPEC_HIDDEN;
 extern SIZE_T startup_info_size DECLSPEC_HIDDEN;
-extern SECTION_IMAGE_INFORMATION main_image_info DECLSPEC_HIDDEN;
 extern int main_argc DECLSPEC_HIDDEN;
 extern char **main_argv DECLSPEC_HIDDEN;
 extern char **main_envp DECLSPEC_HIDDEN;
@@ -156,8 +151,8 @@ extern NTSTATUS load_builtin( const pe_image_info_t *image_info, WCHAR *filename
                               void **addr_ptr, SIZE_T *size_ptr ) DECLSPEC_HIDDEN;
 extern BOOL is_builtin_path( const UNICODE_STRING *path, WORD *machine ) DECLSPEC_HIDDEN;
 extern NTSTATUS load_main_exe( const WCHAR *name, const char *unix_name, const WCHAR *curdir, WCHAR **image,
-                               void **module ) DECLSPEC_HIDDEN;
-extern NTSTATUS load_start_exe( WCHAR **image, void **module ) DECLSPEC_HIDDEN;
+                               void **module, SECTION_IMAGE_INFORMATION *image_info ) DECLSPEC_HIDDEN;
+extern NTSTATUS load_start_exe( WCHAR **image, void **module, SECTION_IMAGE_INFORMATION *image_info ) DECLSPEC_HIDDEN;
 extern void start_server( BOOL debug ) DECLSPEC_HIDDEN;
 extern ULONG_PTR get_image_address(void) DECLSPEC_HIDDEN;
 
@@ -204,11 +199,11 @@ extern NTSTATUS virtual_map_builtin_module( HANDLE mapping, void **module, SIZE_
 extern NTSTATUS virtual_create_builtin_view( void *module, const UNICODE_STRING *nt_name,
                                              pe_image_info_t *info, void *so_handle ) DECLSPEC_HIDDEN;
 extern TEB *virtual_alloc_first_teb(void) DECLSPEC_HIDDEN;
-extern NTSTATUS virtual_alloc_teb( TEB **ret_teb ) DECLSPEC_HIDDEN;
+extern NTSTATUS virtual_alloc_teb( TEB **ret_teb, ULONG_PTR zero_bits ) DECLSPEC_HIDDEN;
 extern void virtual_free_teb( TEB *teb ) DECLSPEC_HIDDEN;
 extern NTSTATUS virtual_clear_tls_index( ULONG index ) DECLSPEC_HIDDEN;
-extern NTSTATUS virtual_alloc_thread_stack( INITIAL_TEB *stack, SIZE_T reserve_size, SIZE_T commit_size,
-                                            SIZE_T *pthread_size ) DECLSPEC_HIDDEN;
+extern NTSTATUS virtual_alloc_thread_stack( INITIAL_TEB *stack, ULONG_PTR zero_bits, SIZE_T reserve_size,
+                                            SIZE_T commit_size, SIZE_T *pthread_size ) DECLSPEC_HIDDEN;
 extern void virtual_map_user_shared_data(void) DECLSPEC_HIDDEN;
 extern NTSTATUS virtual_handle_fault( void *addr, DWORD err, void *stack ) DECLSPEC_HIDDEN;
 extern unsigned int virtual_locked_server_call( void *req_ptr ) DECLSPEC_HIDDEN;
@@ -268,7 +263,6 @@ extern NTSTATUS open_unix_file( HANDLE *handle, const char *unix_name, ACCESS_MA
                                 ULONG options, void *ea_buffer, ULONG ea_length ) DECLSPEC_HIDDEN;
 extern void init_files(void) DECLSPEC_HIDDEN;
 extern void init_cpu_info(void) DECLSPEC_HIDDEN;
-extern struct cpu_topology_override *get_cpu_topology_override(void) DECLSPEC_HIDDEN;
 
 extern void dbg_init(void) DECLSPEC_HIDDEN;
 
@@ -310,9 +304,15 @@ static inline void ascii_to_unicode( WCHAR *dst, const char *src, size_t len )
     while (len--) *dst++ = (unsigned char)*src++;
 }
 
+static inline IMAGE_NT_HEADERS *get_exe_nt_header(void)
+{
+    IMAGE_DOS_HEADER *module = (IMAGE_DOS_HEADER *)NtCurrentTeb()->Peb->ImageBaseAddress;
+    return (IMAGE_NT_HEADERS *)((char *)module + module->e_lfanew);
+}
+
 static inline void *get_signal_stack(void)
 {
-    return (char *)NtCurrentTeb() + teb_size - teb_offset;
+    return (void *)(((ULONG_PTR)NtCurrentTeb() & ~signal_stack_mask) + teb_size);
 }
 
 static inline void mutex_lock( pthread_mutex_t *mutex )
@@ -414,6 +414,7 @@ static inline void context_init_xstate( CONTEXT *context, void *xstate_buffer )
 #endif
 
 extern enum loadorder CDECL get_load_order( const UNICODE_STRING *nt_name ) DECLSPEC_HIDDEN;
+extern void set_load_order_app_name( const WCHAR *app_name ) DECLSPEC_HIDDEN;
 
 static inline size_t ntdll_wcslen( const WCHAR *str )
 {

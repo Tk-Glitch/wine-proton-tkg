@@ -517,7 +517,7 @@ int __cdecl wmain (int argc, WCHAR *argv[])
 		}
                 else if (is_option(argv[i], L"/exec")) {
 			creation_flags = 0;
-			sei.fMask = SEE_MASK_NO_CONSOLE | SEE_MASK_FLAG_NO_UI;
+			sei.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NO_CONSOLE | SEE_MASK_FLAG_NO_UI;
                         i++;
                         break;
 		}
