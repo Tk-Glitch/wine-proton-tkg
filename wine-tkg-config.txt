@@ -1,9 +1,9 @@
-# Last proton_dist configuration - Sun Nov 21 07:08:47 PM CET 2021 :
+# Last proton_dist configuration - Sun Nov 21 07:09:30 PM CET 2021 :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 6.14.r0.g7bedd313c88
-Using wine-staging patchset (version 6.14.r0.g069adfd1)
+Wine (plain) version: 6.15.r0.g7f144646ffa
+Using wine-staging patchset (version 6.15.r0.g4b6879f3)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
@@ -21,7 +21,7 @@ Staging overrides, if any: -W ntdll-NtAlertThreadByThreadId -W winex11-WM_WINDOW
 
 use_clock_monotonic-staging.patch -- ( Applied clock_monotonic patch )
 assettocorsa_hud_perf-proton.patch -- ( Applied Assetto Corsa HUD performance fix (proton edition) )
-mk11-8504e40.patch -- ( Applied Mortal Kombat 11 fix )
+mk11.patch -- ( Applied Mortal Kombat 11 fix )
 fsync-unix-staging-10ca57f.patch -- ( Applied fsync, an experimental replacement for esync (unix, staging) )
 server_Abort_waiting_on_a_completion_port_when_closing_it.patch -- ( Added Abort waiting on a completion port when closing it Proton patch )
 fsync_futex2.patch -- ( Add futex2 support to fsync )
@@ -30,7 +30,7 @@ valve_proton_fullscreen_hack-staging-a7ec245.patch -- ( Applied Proton fullscree
 LAA-unix-staging-ea6308e.patch -- ( Applied large address aware override support )
 proton-tkg-steamclient-swap-72449b7.patch -- ( Applied steamclient substitution hack )
 
-proton-tkg-staging-e584050.patch -- ( Using Steam-specific Proton-tkg patches (staging-e584050) 2/2 )
+proton-tkg-staging-d127a14.patch -- ( Using Steam-specific Proton-tkg patches (staging-d127a14) 2/2 )
 proton-steam-bits-61e217c.patch -- ( Using Steam-specific Proton-tkg patches (staging) 3/3 )
 proton-gstreamer-staging.patch -- ( Enable Proton's gstreamer additions )
 proton-vr.patch -- ( Enable Proton vr-related wined3d additions )
@@ -41,6 +41,7 @@ proton-win10-default-staging-d02d502.patch -- ( Enforce win10 as default wine ve
 dxvk_config_dxgi_support.patch -- ( Add support for dxvk_config library to Wine's dxgi )
 proton_battleye.patch -- ( Add support for Proton's Battleye runtime )
 
+Applied hotfix wine-pulseaudio-fixup.mypatch
 Applied hotfix imm32-com-initialization_no_net_active_window.mypatch
 Applied hotfix virtual_alloc_remi2.mypatch
 Applied hotfix a608ef1.mypatch

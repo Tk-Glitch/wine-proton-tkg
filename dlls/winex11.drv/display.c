@@ -797,6 +797,14 @@ static BOOL X11DRV_InitMonitor(HDEVINFO devinfo, const struct x11drv_monitor *mo
     hkey = SetupDiCreateDevRegKeyW(devinfo, &device_data, DICS_FLAG_GLOBAL, 0, DIREG_DRV, NULL, NULL);
     RegCloseKey(hkey);
 
+    /* This is needed for MK11, but breaks Hitman 2, so we use a specific check for MK11 */
+    const char *sgi = getenv("SteamGameId");
+    if ((sgi && !strcmp(sgi, "976310"))) {
+        /* Create device key */
+        hkey = SetupDiCreateDevRegKeyW(devinfo, &device_data, DICS_FLAG_GLOBAL, 0, DIREG_DEV, NULL, NULL);
+        RegCloseKey(hkey);
+    }
+
     /* FIXME:
      * Following properties are Wine specific, see comments in X11DRV_InitAdapter for details */
     /* StateFlags */
