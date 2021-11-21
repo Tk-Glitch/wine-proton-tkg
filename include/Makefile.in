@@ -688,8 +688,6 @@ SOURCES = \
 	srcrst.idl \
 	srrestoreptapi.h \
 	sspi.h \
-	stdole2.idl \
-	stdole32.idl \
 	stgprop.h \
 	sti.h \
 	storage.h \
@@ -718,6 +716,7 @@ SOURCES = \
 	tpcshrd.h \
 	traffic.h \
 	transact.idl \
+	trnjoi.idl \
 	twain.h \
 	txcoord.idl \
 	txdtc.idl \

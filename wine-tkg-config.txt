@@ -1,9 +1,9 @@
-# Last proton_dist configuration - Sun Nov 21 07:13:33 PM CET 2021 :
+# Last proton_dist configuration - Sun Nov 21 07:14:13 PM CET 2021 :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 6.21.r0.g20f1a677b66
-Using wine-staging patchset (version 6.21.r0.g63c3baa9)
+Wine (plain) version: 6.22.r0.g986254d6c17
+Using wine-staging patchset (version 6.22.r0.ga703038b)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
@@ -14,7 +14,7 @@ Applied reverting hotfix staging-pulseaudio-reverts.mystagingrevert
 Applied hotfix commit-64a9d9f.mystagingpatch
 Applied hotfix staging-6dcaff42.mystagingpatch
 Applied hotfix staging-reenable-pulse.mystagingpatch
-Applied hotfix protonify_stg_syscall_emu-007.mystagingpatch
+Applied hotfix protonify_stg_syscall_emu-008.mystagingpatch
 Applied reverting hotfix d4259ac8e93.myearlyrevert
 Applied hotfix 0001-Revert-winegstreamer-Get-rid-of-the-WMReader-typedef.myearlypatch
 Applied hotfix 0002-Revert-wmvcore-Move-the-async-reader-implementation-.myearlypatch
@@ -81,7 +81,7 @@ plasma_systray_fix.patch -- ( Applied plasma 5 systray fix )
 steam.patch -- ( Applied steam crossover hack )
 CSMT-toggle.patch -- ( Applied CSMT toggle logic patch )
 
-Staging overrides, if any: -W ntdll-NtAlertThreadByThreadId -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW
+Staging overrides, if any: -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW
 
 use_clock_monotonic-staging.patch -- ( Applied clock_monotonic patch )
 assettocorsa_hud_perf-proton.patch -- ( Applied Assetto Corsa HUD performance fix (proton edition) )
@@ -90,7 +90,7 @@ fsync-unix-staging.patch -- ( Applied fsync, an experimental replacement for esy
 server_Abort_waiting_on_a_completion_port_when_closing_it.patch -- ( Added Abort waiting on a completion port when closing it Proton patch )
 fsync_futex2.patch -- ( Add futex2 support to fsync )
 
-valve_proton_fullscreen_hack-staging-d1290b6.patch -- ( Applied Proton fullscreen hack patch (d1290b6) )
+valve_proton_fullscreen_hack-staging.patch -- ( Applied Proton fullscreen hack patch (staging) )
 LAA-unix-staging.patch -- ( Applied large address aware override support )
 proton-tkg-steamclient-swap.patch -- ( Applied steamclient substitution hack )
 
@@ -107,7 +107,7 @@ proton_battleye.patch -- ( Add support for Proton's Battleye runtime )
 
 Applied hotfix Return_nt_filename_and_resolve_DOS_drive_path.mypatch
 Applied hotfix ef6e33f.mypatch
-Applied hotfix 0001-proton-bcrypt_rdr2_fixes.mypatch
+Applied hotfix 0001-proton-bcrypt_rdr2_fixes2.mypatch
 Applied hotfix 0002-bcrypt-Add-support-for-calculating-secret-ecc-keys.mypatch
 Applied hotfix 0003-bcrypt-Add-support-for-OAEP-padded-asymmetric-key-de.mypatch
 Applied hotfix a608ef1.mypatch
