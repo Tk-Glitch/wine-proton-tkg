@@ -1417,11 +1417,19 @@ static HRESULT WINAPI FilterGraph2_RenderFile(IFilterGraph2 *iface, LPCWSTR lpcw
         IEnumPins_Release(penumpins);
 
         if (!any)
+        {
+            if (FAILED(hr = IFilterGraph2_RemoveFilter(iface, preader)))
+                ERR("Failed to remove source filter, hr %#x.\n", hr);
             hr = VFW_E_CANNOT_RENDER;
+        }
         else if (partial)
+        {
             hr = VFW_S_PARTIAL_RENDER;
+        }
         else
+        {
             hr = S_OK;
+        }
     }
     IBaseFilter_Release(preader);
 
@@ -5084,7 +5092,6 @@ static HRESULT WINAPI MediaFilter_GetState(IMediaFilter *iface, DWORD timeout, F
 {
     struct filter_graph *graph = impl_from_IMediaFilter(iface);
     DWORD end = GetTickCount() + timeout;
-    FILTER_STATE expect_state;
     HRESULT hr;
 
     TRACE("graph %p, timeout %u, state %p.\n", graph, timeout, state);
@@ -5100,7 +5107,6 @@ static HRESULT WINAPI MediaFilter_GetState(IMediaFilter *iface, DWORD timeout, F
 
     EnterCriticalSection(&graph->cs);
     *state = graph->state;
-    expect_state = graph->needs_async_run ? State_Paused : graph->state;
 
     for (;;)
     {
@@ -5132,9 +5138,18 @@ static HRESULT WINAPI MediaFilter_GetState(IMediaFilter *iface, DWORD timeout, F
             else if (filter_state != graph->state && filter_state != State_Paused)
                 hr = E_FAIL;
 
-            if (filter_state != expect_state)
-                ERR("Filter %p reported incorrect state %u (expected %u).\n",
-                        filter->filter, filter_state, expect_state);
+            if (graph->needs_async_run)
+            {
+                if (filter_state != State_Paused && filter_state != State_Running)
+                    ERR("Filter %p reported incorrect state %u (expected %u or %u).\n",
+                            filter->filter, filter_state, State_Paused, State_Running);
+            }
+            else
+            {
+                if (filter_state != graph->state)
+                    ERR("Filter %p reported incorrect state %u (expected %u).\n",
+                            filter->filter, filter_state, graph->state);
+            }
         }
 
         LeaveCriticalSection(&graph->cs);
@@ -5560,10 +5575,27 @@ static const IUnknownVtbl IInner_VTable =
     FilterGraphInner_Release
 };
 
+static BOOL CALLBACK register_winegstreamer_proc(INIT_ONCE *once, void *param, void **ctx)
+{
+    HMODULE mod = LoadLibraryW(L"winegstreamer.dll");
+    if (mod)
+    {
+        HRESULT (WINAPI *proc)(void) = (void *)GetProcAddress(mod, "DllRegisterServer");
+        proc();
+        FreeLibrary(mod);
+    }
+    return TRUE;
+}
+
 static HRESULT filter_graph_common_create(IUnknown *outer, IUnknown **out, BOOL threaded)
 {
+    static INIT_ONCE once = INIT_ONCE_STATIC_INIT;
     struct filter_graph *object;
     HRESULT hr;
+
+    /* HACK: our build system makes it difficult to load gstreamer on prefix
+     * creation, so it won't get registered. Do that here instead. */
+    InitOnceExecuteOnce(&once, register_winegstreamer_proc, NULL, NULL);
 
     *out = NULL;
 

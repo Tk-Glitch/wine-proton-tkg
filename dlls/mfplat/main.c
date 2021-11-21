@@ -1429,6 +1429,18 @@ HRESULT WINAPI MFTUnregister(CLSID clsid)
     return S_OK;
 }
 
+static BOOL CALLBACK register_winegstreamer_proc(INIT_ONCE *once, void *param, void **ctx)
+{
+    HMODULE mod = LoadLibraryW(L"winegstreamer.dll");
+    if (mod)
+    {
+        HRESULT (WINAPI *proc)(void) = (void *)GetProcAddress(mod, "DllRegisterServer");
+        proc();
+        FreeLibrary(mod);
+    }
+    return TRUE;
+}
+
 /***********************************************************************
  *      MFStartup (mfplat.@)
  */
@@ -1436,8 +1448,11 @@ HRESULT WINAPI MFStartup(ULONG version, DWORD flags)
 {
 #define MF_VERSION_XP   MAKELONG( MF_API_VERSION, 1 )
 #define MF_VERSION_WIN7 MAKELONG( MF_API_VERSION, 2 )
+    static INIT_ONCE once = INIT_ONCE_STATIC_INIT;
 
     TRACE("%#x, %#x.\n", version, flags);
+
+    InitOnceExecuteOnce(&once, register_winegstreamer_proc, NULL, NULL);
 
     if (version != MF_VERSION_XP && version != MF_VERSION_WIN7)
         return MF_E_BAD_STARTUP_VERSION;
@@ -8881,27 +8896,35 @@ static const IMFDXGIDeviceManagerVtbl dxgi_device_manager_vtbl =
 HRESULT WINAPI MFCreateDXGIDeviceManager(UINT *token, IMFDXGIDeviceManager **manager)
 {
     struct dxgi_device_manager *object;
+    const char *sgi = getenv("SteamGameId");
 
     TRACE("%p, %p.\n", token, manager);
 
-    if (!token || !manager)
-        return E_POINTER;
+    return E_NOTIMPL;
 
-    if (!(object = calloc(1, sizeof(*object))))
-        return E_OUTOFMEMORY;
+    if (sgi && (!strcmp(sgi,"1113560")))
+    {
+        if (!token || !manager)
+            return E_POINTER;
 
-    object->IMFDXGIDeviceManager_iface.lpVtbl = &dxgi_device_manager_vtbl;
-    object->refcount = 1;
-    object->token = GetTickCount();
-    InitializeCriticalSection(&object->cs);
-    InitializeConditionVariable(&object->lock);
+        if (!(object = calloc(1, sizeof(*object))))
+            return E_OUTOFMEMORY;
 
-    TRACE("Created device manager: %p, token: %u.\n", object, object->token);
+        object->IMFDXGIDeviceManager_iface.lpVtbl = &dxgi_device_manager_vtbl;
+        object->refcount = 1;
+        object->token = GetTickCount();
+        InitializeCriticalSection(&object->cs);
+        InitializeConditionVariable(&object->lock);
 
-    *token = object->token;
-    *manager = &object->IMFDXGIDeviceManager_iface;
+        TRACE("Created device manager: %p, token: %u.\n", object, object->token);
 
-    return S_OK;
+        *token = object->token;
+        *manager = &object->IMFDXGIDeviceManager_iface;
+
+        return S_OK;
+    } else {
+        return E_NOTIMPL;
+    }
 }
 
 /***********************************************************************
