@@ -1,9 +1,9 @@
-# Last proton_dist configuration - Sun Nov 21 07:08:07 PM CET 2021 :
+# Last proton_dist configuration - Sun Nov 21 07:08:47 PM CET 2021 :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 6.13.r0.gfeb088b2247
-Using wine-staging patchset (version 6.13.r0.g52dd3381)
+Wine (plain) version: 6.14.r0.g7bedd313c88
+Using wine-staging patchset (version 6.14.r0.g069adfd1)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
@@ -11,7 +11,6 @@ Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
 Done applying reverting hotfixes (if any) - list available in prepare.log
 
 Applied reverting hotfix staging-pulseaudio-reverts.mystagingrevert
-Applied reverting hotfix staging-server-default-integrity.mystagingrevert
 Applied hotfix staging-reenable-pulse.mystagingpatch
 Applied hotfix protonify_stg_syscall_emu-003.mystagingpatch
 plasma_systray_fix.patch -- ( Applied plasma 5 systray fix )
@@ -33,7 +32,7 @@ proton-tkg-steamclient-swap-72449b7.patch -- ( Applied steamclient substitution 
 
 proton-tkg-staging-e584050.patch -- ( Using Steam-specific Proton-tkg patches (staging-e584050) 2/2 )
 proton-steam-bits-61e217c.patch -- ( Using Steam-specific Proton-tkg patches (staging) 3/3 )
-proton-gstreamer-staging-aeabe99.patch -- ( Enable Proton's gstreamer additions )
+proton-gstreamer-staging.patch -- ( Enable Proton's gstreamer additions )
 proton-vr.patch -- ( Enable Proton vr-related wined3d additions )
 msvcrt_nativebuiltin.patch -- ( Enforce msvcrt Dlls to native then builtin (from Proton) )
 proton-bcrypt-staging-b3cd21c.patch -- ( Using Proton Bcrypt patches )
@@ -42,8 +41,6 @@ proton-win10-default-staging-d02d502.patch -- ( Enforce win10 as default wine ve
 dxvk_config_dxgi_support.patch -- ( Add support for dxvk_config library to Wine's dxgi )
 proton_battleye.patch -- ( Add support for Proton's Battleye runtime )
 
-Applied reverting hotfix revert_steamclient_breaker14.myrevert
-Applied hotfix wineserver-socket-spin-workaround.mypatch
 Applied hotfix imm32-com-initialization_no_net_active_window.mypatch
 Applied hotfix virtual_alloc_remi2.mypatch
 Applied hotfix a608ef1.mypatch

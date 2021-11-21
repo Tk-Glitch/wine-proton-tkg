@@ -783,10 +783,10 @@ typedef union
 typedef struct
 {
     client_ptr_t   base;
-    client_ptr_t   entry_point;
-    mem_size_t     map_size;
     mem_size_t     stack_size;
     mem_size_t     stack_commit;
+    unsigned int   entry_point;
+    unsigned int   map_size;
     unsigned int   zerobits;
     unsigned int   subsystem;
     unsigned short subsystem_minor;
@@ -3431,6 +3431,7 @@ struct handle_info
 
 /* Make the current process a system process */
 @REQ(make_process_system)
+    obj_handle_t handle;          /* handle to the process */
 @REPLY
     obj_handle_t event;           /* event signaled when all user processes have exited */
 @END
