@@ -1,9 +1,9 @@
-# Last proton_dist configuration - Sun Nov 21 07:07:23 PM CET 2021 :
+# Last proton_dist configuration - Sun Nov 21 07:08:07 PM CET 2021 :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 6.12.r0.g12d33d21d33
-Using wine-staging patchset (version 6.12.1.r0.g163f74fe)
+Wine (plain) version: 6.13.r0.gfeb088b2247
+Using wine-staging patchset (version 6.13.r0.g52dd3381)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
@@ -29,11 +29,11 @@ fsync_futex2.patch -- ( Add futex2 support to fsync )
 
 valve_proton_fullscreen_hack-staging-a7ec245.patch -- ( Applied Proton fullscreen hack patch (a7ec245) )
 LAA-unix-staging-ea6308e.patch -- ( Applied large address aware override support )
-proton-tkg-steamclient-swap-5071a28.patch -- ( Applied steamclient substitution hack )
+proton-tkg-steamclient-swap-72449b7.patch -- ( Applied steamclient substitution hack )
 
-proton-tkg-staging-20fff53.patch -- ( Using Steam-specific Proton-tkg patches (staging-20fff53) 2/2 )
-proton-steam-bits-23d2d0c.patch -- ( Using Steam-specific Proton-tkg patches (staging) 3/3 )
-proton-gstreamer-staging-e36e384.patch -- ( Enable Proton's gstreamer additions )
+proton-tkg-staging-e584050.patch -- ( Using Steam-specific Proton-tkg patches (staging-e584050) 2/2 )
+proton-steam-bits-61e217c.patch -- ( Using Steam-specific Proton-tkg patches (staging) 3/3 )
+proton-gstreamer-staging-aeabe99.patch -- ( Enable Proton's gstreamer additions )
 proton-vr.patch -- ( Enable Proton vr-related wined3d additions )
 msvcrt_nativebuiltin.patch -- ( Enforce msvcrt Dlls to native then builtin (from Proton) )
 proton-bcrypt-staging-b3cd21c.patch -- ( Using Proton Bcrypt patches )
@@ -42,8 +42,7 @@ proton-win10-default-staging-d02d502.patch -- ( Enforce win10 as default wine ve
 dxvk_config_dxgi_support.patch -- ( Add support for dxvk_config library to Wine's dxgi )
 proton_battleye.patch -- ( Add support for Proton's Battleye runtime )
 
-Applied reverting hotfix revert_steamclient_breaker14-proton.myrevert
-Applied hotfix zeb-fb3956f-fix.mypatch
+Applied reverting hotfix revert_steamclient_breaker14.myrevert
 Applied hotfix wineserver-socket-spin-workaround.mypatch
 Applied hotfix imm32-com-initialization_no_net_active_window.mypatch
 Applied hotfix virtual_alloc_remi2.mypatch
