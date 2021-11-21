@@ -74,6 +74,7 @@
 # include <linux/filter.h>
 # include <linux/seccomp.h>
 # include <sys/prctl.h>
+# include <linux/audit.h>
 #endif
 
 #define NONAMELESSUNION
@@ -237,8 +238,8 @@ __ASM_GLOBAL_FUNC( alloc_fs_sel,
 #define FS_sig(context)      ((context)->uc_mcontext->__ss.__fs)
 #define GS_sig(context)      ((context)->uc_mcontext->__ss.__gs)
 #define EFL_sig(context)     ((context)->uc_mcontext->__ss.__rflags)
-#define RIP_sig(context)     (*((unsigned long*)&(context)->uc_mcontext->__ss.__rip))
-#define RSP_sig(context)     (*((unsigned long*)&(context)->uc_mcontext->__ss.__rsp))
+#define RIP_sig(context)     ((context)->uc_mcontext->__ss.__rip)
+#define RSP_sig(context)     ((context)->uc_mcontext->__ss.__rsp)
 #define TRAP_sig(context)    ((context)->uc_mcontext->__es.__trapno)
 #define ERROR_sig(context)   ((context)->uc_mcontext->__es.__err)
 #define FPU_sig(context)     ((XMM_SAVE_AREA32 *)&(context)->uc_mcontext->__fs.__fpu_fcw)
@@ -293,6 +294,8 @@ C_ASSERT( sizeof(struct stack_layout) == 0x590 ); /* Should match the size in ca
 #define SYSCALL_HAVE_PTHREAD_TEB 4
 #define SYSCALL_HAVE_WRFSGSBASE  8
 
+static unsigned int syscall_flags;
+
 /* stack layout when calling an user apc function.
  * FIXME: match Windows ABI. */
 struct apc_stack_layout
@@ -332,9 +335,12 @@ struct syscall_frame
     WORD                  gs;            /* 0092 */
     DWORD                 restore_flags; /* 0094 */
     ULONG64               rbp;           /* 0098 */
-    ULONG64               align[4];      /* 00a0 */
+    struct syscall_frame *prev_frame;    /* 00a0 */
+    SYSTEM_SERVICE_TABLE *syscall_table; /* 00a8 */
+    DWORD                 syscall_flags; /* 00b0 */
+    DWORD                 align[3];      /* 00b4 */
     XMM_SAVE_AREA32       xsave;         /* 00c0 */
-    XSTATE                xstate;        /* 02c0 */
+    DECLSPEC_ALIGN(64) XSTATE xstate;    /* 02c0 */
 };
 
 C_ASSERT( sizeof( struct syscall_frame ) == 0x400);
@@ -2283,6 +2289,71 @@ NTSTATUS call_user_exception_dispatcher( EXCEPTION_RECORD *rec, CONTEXT *context
 }
 
 
+struct user_callback_frame
+{
+    struct syscall_frame frame;
+    void               **ret_ptr;
+    ULONG               *ret_len;
+    __wine_jmp_buf       jmpbuf;
+    NTSTATUS             status;
+};
+
+/***********************************************************************
+ *           KeUserModeCallback
+ */
+NTSTATUS WINAPI KeUserModeCallback( ULONG id, const void *args, ULONG len, void **ret_ptr, ULONG *ret_len )
+{
+    struct user_callback_frame callback_frame = { { 0 }, ret_ptr, ret_len };
+
+    if ((char *)ntdll_get_thread_data()->kernel_stack + min_kernel_stack > (char *)&callback_frame)
+        return STATUS_STACK_OVERFLOW;
+
+    if (!__wine_setjmpex( &callback_frame.jmpbuf, NULL ))
+    {
+        struct syscall_frame *frame = amd64_thread_data()->syscall_frame;
+        void *args_data = (void *)((frame->rsp - len) & ~15);
+
+        memcpy( args_data, args, len );
+
+        callback_frame.frame.rcx           = id;
+        callback_frame.frame.rdx           = (ULONG_PTR)args;
+        callback_frame.frame.r8            = len;
+        callback_frame.frame.cs            = cs64_sel;
+        callback_frame.frame.fs            = fs32_sel;
+        callback_frame.frame.gs            = ds64_sel;
+        callback_frame.frame.ss            = ds64_sel;
+        callback_frame.frame.rsp           = (ULONG_PTR)args_data - 0x28;
+        callback_frame.frame.rip           = (ULONG_PTR)pKiUserCallbackDispatcher;
+        callback_frame.frame.eflags        = 0x200;
+        callback_frame.frame.restore_flags = CONTEXT_CONTROL | CONTEXT_INTEGER;
+        callback_frame.frame.prev_frame    = frame;
+        callback_frame.frame.syscall_flags = frame->syscall_flags;
+        callback_frame.frame.syscall_table = frame->syscall_table;
+        amd64_thread_data()->syscall_frame = &callback_frame.frame;
+
+        __wine_syscall_dispatcher_return( &callback_frame.frame, 0 );
+    }
+    return callback_frame.status;
+}
+
+
+/***********************************************************************
+ *           NtCallbackReturn  (NTDLL.@)
+ */
+NTSTATUS WINAPI NtCallbackReturn( void *ret_ptr, ULONG ret_len, NTSTATUS status )
+{
+    struct user_callback_frame *frame = (struct user_callback_frame *)amd64_thread_data()->syscall_frame;
+
+    if (!frame->frame.prev_frame) return STATUS_NO_CALLBACK_ACTIVE;
+
+    *frame->ret_ptr = ret_ptr;
+    *frame->ret_len = ret_len;
+    frame->status = status;
+    amd64_thread_data()->syscall_frame = frame->frame.prev_frame;
+    __wine_longjmp( &frame->jmpbuf, 1 );
+}
+
+
 /***********************************************************************
  *           is_privileged_instr
  *
@@ -2485,37 +2556,47 @@ static void install_bpf(struct sigaction *sig_act)
 #   ifndef SECCOMP_SET_MODE_FILTER
 #       define SECCOMP_SET_MODE_FILTER 1
 #   endif
+    static const BYTE syscall_trap_test[] =
+    {
+        0x48, 0x89, 0xc8,   /* mov %rcx, %rax */
+        0x0f, 0x05,         /* syscall */
+        0xc3,               /* retq */
+    };
     static const unsigned int flags = SECCOMP_FILTER_FLAG_SPEC_ALLOW;
+
+#define NATIVE_SYSCALL_ADDRESS_START 0x700000000000
+
     static struct sock_filter filter[] =
     {
-       BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
-                (offsetof(struct seccomp_data, nr))),
-       BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, 0xf000, 0, 1),
-       BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP),
-       BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
-    };
-    static struct sock_filter filter_rdr2[] =
-    {
-        /* Trap anything called from RDR2 or the launcher (0x140000000 - 0x150000000)*/
-        /* > 0x140000000 */
-        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, instruction_pointer) + 0),
-        BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, 0x40000000 /*lsb*/, 0, 7),
         BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, instruction_pointer) + 4),
-        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0x1 /*msb*/, 0, 5),
-
-        /* < 0x150000000 */
-        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, instruction_pointer) + 0),
-        BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, 0x50000000 /*lsb*/, 3, 0),
-        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, instruction_pointer) + 4),
-        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0x1 /*msb*/, 0, 1),
+        /* Native libs are loaded at high addresses. */
+        BPF_JUMP(BPF_JMP | BPF_JGT | BPF_K, NATIVE_SYSCALL_ADDRESS_START >> 32, 0, 1),
+        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
+        /* Allow i386. */
+        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, arch)),
+        BPF_JUMP (BPF_JMP | BPF_JEQ | BPF_K, AUDIT_ARCH_X86_64, 1, 0),
+        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
+        /* Allow wine64-preloader */
+        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, instruction_pointer)),
+        BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, 0x7d400000, 1, 0),
         BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP),
-
-        /* Allow everything else */
+        BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, 0x7d402000, 0, 1),
+        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP),
         BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
     };
+    long (WINAPI *test_syscall)(long sc_number);
+    struct syscall_frame *frame = amd64_thread_data()->syscall_frame;
     struct sock_fprog prog;
-    BOOL rdr2 = FALSE;
     NTSTATUS status;
+
+    if ((ULONG_PTR)sc_seccomp < NATIVE_SYSCALL_ADDRESS_START
+            || (ULONG_PTR)syscall < NATIVE_SYSCALL_ADDRESS_START)
+    {
+        ERR("Native libs are being loaded in low addresses, sc_seccomp %p, syscall %p, not installing seccomp.\n",
+                sc_seccomp, syscall);
+        ERR("The known reasons are /proc/sys/vm/legacy_va_layout set to 1 or 'ulimit -s' being 'unlimited'.\n");
+        return;
+    }
 
     sig_act->sa_sigaction = sigsys_handler;
     memset(&prog, 0, sizeof(prog));
@@ -2524,19 +2605,25 @@ static void install_bpf(struct sigaction *sig_act)
         const char *sgi = getenv("SteamGameId");
         if (sgi && (!strcmp(sgi, "1174180") || !strcmp(sgi, "1404210")))
         {
-            /* Use specific filter and signal handler for Red Dead Redemption 2 */
-            prog.len = ARRAY_SIZE(filter_rdr2);
-            prog.filter = filter_rdr2;
+            /* Use specific signal handler for Red Dead Redemption 2 */
             sig_act->sa_sigaction = sigsys_handler_rdr2;
-            rdr2 = TRUE;
         }
     }
 
     sigaction(SIGSYS, sig_act, NULL);
 
-    if (rdr2)
+    frame->syscall_flags = syscall_flags;
+    frame->syscall_table = KeServiceDescriptorTable;
+
+    test_syscall = mmap((void *)0x600000000000, 0x1000, PROT_EXEC | PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANON, -1, 0);
+    if (test_syscall != (void *)0x600000000000)
     {
         int ret;
+
+        ERR("Could not allocate test syscall, falling back to seccomp presence check, test_syscall %p, errno %d.\n",
+                test_syscall, errno);
+        if (test_syscall != MAP_FAILED) munmap(test_syscall, 0x1000);
 
         if ((ret = prctl(PR_GET_SECCOMP, 0, NULL, 0, 0)))
         {
@@ -2549,7 +2636,10 @@ static void install_bpf(struct sigaction *sig_act)
     }
     else
     {
-        if ((status = syscall(0xffff)) == STATUS_INVALID_PARAMETER)
+        memcpy(test_syscall, syscall_trap_test, sizeof(syscall_trap_test));
+        status = test_syscall(0xffff);
+        munmap(test_syscall, 0x1000);
+        if (status == STATUS_INVALID_PARAMETER)
         {
             TRACE("Seccomp filters already installed.\n");
             return;
@@ -2559,9 +2649,12 @@ static void install_bpf(struct sigaction *sig_act)
             ERR("Unexpected status %#x, errno %d.\n", status, errno);
             return;
         }
-        prog.len = ARRAY_SIZE(filter);
-        prog.filter = filter;
     }
+
+    TRACE("Installing seccomp filters.\n");
+
+    prog.len = ARRAY_SIZE(filter);
+    prog.filter = filter;
 
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0))
     {
@@ -2594,8 +2687,10 @@ static inline BOOL handle_interrupt( ucontext_t *sigcontext, EXCEPTION_RECORD *r
         rec->ExceptionCode = STATUS_ASSERTION_FAILURE;
         break;
     case 0x2d:
-        switch (context->Rax)
+        if (CS_sig(sigcontext) == cs64_sel)
         {
+            switch (context->Rax)
+            {
             case 1: /* BREAKPOINT_PRINT */
             case 3: /* BREAKPOINT_LOAD_SYMBOLS */
             case 4: /* BREAKPOINT_UNLOAD_SYMBOLS */
@@ -2603,6 +2698,7 @@ static inline BOOL handle_interrupt( ucontext_t *sigcontext, EXCEPTION_RECORD *r
                 RIP_sig(sigcontext) += 3;
                 leave_handler( sigcontext );
                 return TRUE;
+            }
         }
         context->Rip += 3;
         rec->ExceptionCode = EXCEPTION_BREAKPOINT;
@@ -2853,6 +2949,7 @@ static void trap_handler( int signal, siginfo_t *siginfo, void *sigcontext )
 static void fpe_handler( int signal, siginfo_t *siginfo, void *sigcontext )
 {
     EXCEPTION_RECORD rec = { 0 };
+    ucontext_t *ucontext = sigcontext;
 
     switch (siginfo->si_code)
     {
@@ -2879,8 +2976,19 @@ static void fpe_handler( int signal, siginfo_t *siginfo, void *sigcontext )
         break;
     case FPE_FLTINV:
     default:
-        rec.ExceptionCode = EXCEPTION_FLT_INVALID_OPERATION;
+        if (FPU_sig(ucontext) && FPU_sig(ucontext)->StatusWord & 0x40)
+            rec.ExceptionCode = EXCEPTION_FLT_STACK_CHECK;
+        else
+            rec.ExceptionCode = EXCEPTION_FLT_INVALID_OPERATION;
         break;
+    }
+
+    if (TRAP_sig(ucontext) == TRAP_x86_CACHEFLT)
+    {
+        rec.NumberParameters = 2;
+        rec.ExceptionInformation[0] = 0;
+        rec.ExceptionInformation[1] = FPU_sig(ucontext) ? FPU_sig(ucontext)->MxCsr : 0;
+        if (CS_sig(ucontext) != cs64_sel) rec.ExceptionCode = STATUS_FLOAT_MULTIPLE_TRAPS;
     }
     setup_exception( sigcontext, &rec );
 }
@@ -3109,8 +3217,8 @@ void signal_init_process(void)
     anon_mmap_fixed( ptr, page_size, PROT_READ | PROT_WRITE, 0 );
     *(void **)ptr = __wine_syscall_dispatcher;
 
-    if (cpu_info.ProcessorFeatureBits & CPU_FEATURE_XSAVE) __wine_syscall_flags |= SYSCALL_HAVE_XSAVE;
-    if (xstate_compaction_enabled) __wine_syscall_flags |= SYSCALL_HAVE_XSAVEC;
+    if (cpu_info.ProcessorFeatureBits & CPU_FEATURE_XSAVE) syscall_flags |= SYSCALL_HAVE_XSAVE;
+    if (xstate_compaction_enabled) syscall_flags |= SYSCALL_HAVE_XSAVEC;
 
 #ifdef __linux__
     if (NtCurrentTeb()->WowTebOffset)
@@ -3122,8 +3230,8 @@ void signal_init_process(void)
         if ((sel = alloc_fs_sel( -1, teb32 )) != -1)
         {
             fs32_sel = (sel << 3) | 3;
-            __wine_syscall_flags |= SYSCALL_HAVE_PTHREAD_TEB;
-            if (getauxval( AT_HWCAP2 ) & 2) __wine_syscall_flags |= SYSCALL_HAVE_WRFSGSBASE;
+            syscall_flags |= SYSCALL_HAVE_PTHREAD_TEB;
+            if (getauxval( AT_HWCAP2 ) & 2) syscall_flags |= SYSCALL_HAVE_WRFSGSBASE;
         }
         else ERR_(seh)( "failed to allocate %%fs selector\n" );
     }
@@ -3234,7 +3342,10 @@ void DECLSPEC_HIDDEN call_init_thunk( LPTHREAD_START_ROUTINE entry, void *arg, B
     frame->rsp = (ULONG64)ctx - 8;
     frame->rip = (ULONG64)pLdrInitializeThunk;
     frame->rcx = (ULONG64)ctx;
+    frame->prev_frame = NULL;
     frame->restore_flags |= CONTEXT_INTEGER;
+    frame->syscall_flags = syscall_flags;
+    frame->syscall_table = KeServiceDescriptorTable;
 
     pthread_sigmask( SIG_UNBLOCK, &server_block_set, NULL );
     __wine_syscall_dispatcher_return( frame, 0 );
@@ -3294,5 +3405,147 @@ __ASM_GLOBAL_FUNC( signal_exit_thread,
                    __ASM_CFI(".cfi_rel_offset %r14,16\n\t")
                    __ASM_CFI(".cfi_rel_offset %r15,8\n\t")
                    "call *%rsi" )
+
+/***********************************************************************
+ *           __wine_syscall_dispatcher
+ */
+__ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
+                   "movq %gs:0x30,%rcx\n\t"
+                   "movq 0x328(%rcx),%rcx\n\t"     /* amd64_thread_data()->syscall_frame */
+                   "popq 0x70(%rcx)\n\t"           /* frame->rip */
+                   "pushfq\n\t"
+                   "popq 0x80(%rcx)\n\t"
+                   "movl $0,0x94(%rcx)\n\t"        /* frame->restore_flags */
+                   __ASM_NAME("__wine_syscall_dispatcher_prolog_end") ":\n\t"
+                   "movq %rax,0x00(%rcx)\n\t"
+                   "movq %rbx,0x08(%rcx)\n\t"
+                   "movq %rdx,0x18(%rcx)\n\t"
+                   "movq %rsi,0x20(%rcx)\n\t"
+                   "movq %rdi,0x28(%rcx)\n\t"
+                   "movq %r12,0x50(%rcx)\n\t"
+                   "movq %r13,0x58(%rcx)\n\t"
+                   "movq %r14,0x60(%rcx)\n\t"
+                   "movq %r15,0x68(%rcx)\n\t"
+                   "movw %cs,0x78(%rcx)\n\t"
+                   "movw %ds,0x7a(%rcx)\n\t"
+                   "movw %es,0x7c(%rcx)\n\t"
+                   "movw %fs,0x7e(%rcx)\n\t"
+                   "movq %rsp,0x88(%rcx)\n\t"
+                   "movw %ss,0x90(%rcx)\n\t"
+                   "movw %gs,0x92(%rcx)\n\t"
+                   "movq %rbp,0x98(%rcx)\n\t"
+                   /* Legends of Runeterra hooks the first system call return instruction, and
+                    * depends on us returning to it. Adjust the return address accordingly. */
+                   "subq $0xb,0x70(%rcx)\n\t"
+                   "movl 0xb0(%rcx),%r14d\n\t"     /* frame->syscall_flags */
+                   "testl $3,%r14d\n\t"            /* SYSCALL_HAVE_XSAVE | SYSCALL_HAVE_XSAVEC */
+                   "jz 2f\n\t"
+                   "movl $7,%eax\n\t"
+                   "xorl %edx,%edx\n\t"
+                   "movq %rdx,0x2c0(%rcx)\n\t"
+                   "movq %rdx,0x2c8(%rcx)\n\t"
+                   "movq %rdx,0x2d0(%rcx)\n\t"
+                   "testl $2,%r14d\n\t"            /* SYSCALL_HAVE_XSAVEC */
+                   "jz 1f\n\t"
+                   "movq %rdx,0x2d8(%rcx)\n\t"
+                   "movq %rdx,0x2e0(%rcx)\n\t"
+                   "movq %rdx,0x2e8(%rcx)\n\t"
+                   "movq %rdx,0x2f0(%rcx)\n\t"
+                   "movq %rdx,0x2f8(%rcx)\n\t"
+                   "xsavec64 0xc0(%rcx)\n\t"
+                   "jmp 3f\n"
+                   "1:\txsave64 0xc0(%rcx)\n\t"
+                   "jmp 3f\n"
+                   "2:\tfxsave64 0xc0(%rcx)\n"
+                   "3:\tleaq 0x98(%rcx),%rbp\n\t"
+#ifdef __linux__
+                   "testl $12,%r14d\n\t"           /* SYSCALL_HAVE_PTHREAD_TEB | SYSCALL_HAVE_WRFSGSBASE */
+                   "jz 2f\n\t"
+                   "movq %gs:0x330,%rsi\n\t"       /* amd64_thread_data()->pthread_teb */
+                   "testl $8,%r14d\n\t"            /* SYSCALL_HAVE_WRFSGSBASE */
+                   "jz 1f\n\t"
+                   "wrfsbase %rsi\n\t"
+                   "jmp 2f\n"
+                   "1:\tmov $0x1002,%edi\n\t"      /* ARCH_SET_FS */
+                   "mov $158,%eax\n\t"             /* SYS_arch_prctl */
+                   "syscall\n\t"
+                   "leaq -0x98(%rbp),%rcx\n"
+                   "2:\n\t"
+#endif
+                   "leaq 0x28(%rsp),%rsi\n\t"      /* first argument */
+                   "movq %rcx,%rsp\n\t"
+                   "movq 0x00(%rcx),%rax\n\t"
+                   "movq 0x18(%rcx),%rdx\n\t"
+                   "movl %eax,%ebx\n\t"
+                   "shrl $8,%ebx\n\t"
+                   "andl $0x30,%ebx\n\t"           /* syscall table number */
+                   "movq 0xa8(%rcx),%rcx\n\t"      /* frame->syscall_table */
+                   "leaq (%rcx,%rbx,2),%rbx\n\t"
+                   "andl $0xfff,%eax\n\t"          /* syscall number */
+                   "cmpq 16(%rbx),%rax\n\t"        /* table->ServiceLimit */
+                   "jae 5f\n\t"
+                   "movq 24(%rbx),%rcx\n\t"        /* table->ArgumentTable */
+                   "movzbl (%rcx,%rax),%ecx\n\t"
+                   "subq $0x20,%rcx\n\t"
+                   "jbe 1f\n\t"
+                   "subq %rcx,%rsp\n\t"
+                   "shrq $3,%rcx\n\t"
+                   "andq $~15,%rsp\n\t"
+                   "movq %rsp,%rdi\n\t"
+                   "cld\n\t"
+                   "rep; movsq\n"
+                   "1:\tmovq %r10,%rcx\n\t"
+                   "subq $0x20,%rsp\n\t"
+                   "movq (%rbx),%r10\n\t"          /* table->ServiceTable */
+                   "callq *(%r10,%rax,8)\n\t"
+                   "leaq -0x98(%rbp),%rcx\n"
+                   "2:\tmovl 0x94(%rcx),%edx\n\t"  /* frame->restore_flags */
+#ifdef __linux__
+                   "testl $12,%r14d\n\t"           /* SYSCALL_HAVE_PTHREAD_TEB | SYSCALL_HAVE_WRFSGSBASE */
+                   "jz 1f\n\t"
+                   "movw 0x7e(%rcx),%fs\n"
+                   "1:\n\t"
+#endif
+                   "testl $0x48,%edx\n\t"          /* CONTEXT_FLOATING_POINT | CONTEXT_XSTATE */
+                   "jz 4f\n\t"
+                   "testl $3,%r14d\n\t"            /* SYSCALL_HAVE_XSAVE | SYSCALL_HAVE_XSAVEC */
+                   "jz 3f\n\t"
+                   "movq %rax,%r11\n\t"
+                   "movl $7,%eax\n\t"
+                   "xorl %edx,%edx\n\t"
+                   "xrstor64 0xc0(%rcx)\n\t"
+                   "movq %r11,%rax\n\t"
+                   "movl 0x94(%rcx),%edx\n\t"
+                   "jmp 4f\n"
+                   "3:\tfxrstor64 0xc0(%rcx)\n"
+                   "4:\tmovq 0x98(%rcx),%rbp\n\t"
+                   "movq 0x68(%rcx),%r15\n\t"
+                   "movq 0x60(%rcx),%r14\n\t"
+                   "movq 0x58(%rcx),%r13\n\t"
+                   "movq 0x50(%rcx),%r12\n\t"
+                   "movq 0x28(%rcx),%rdi\n\t"
+                   "movq 0x20(%rcx),%rsi\n\t"
+                   "movq 0x08(%rcx),%rbx\n\t"
+                   "testl $0x3,%edx\n\t"           /* CONTEXT_CONTROL | CONTEXT_INTEGER */
+                   "jnz 1f\n\t"
+                   "movq 0x88(%rcx),%rsp\n\t"
+                   "jmpq *0x70(%rcx)\n"            /* frame->rip */
+                   "1:\tleaq 0x70(%rcx),%rsp\n\t"
+                   "testl $0x2,%edx\n\t"           /* CONTEXT_INTEGER */
+                   "jz 1f\n\t"
+                   "movq 0x00(%rcx),%rax\n\t"
+                   "movq 0x18(%rcx),%rdx\n\t"
+                   "movq 0x30(%rcx),%r8\n\t"
+                   "movq 0x38(%rcx),%r9\n\t"
+                   "movq 0x40(%rcx),%r10\n\t"
+                   "movq 0x48(%rcx),%r11\n\t"
+                   "movq 0x10(%rcx),%rcx\n"
+                   "1:\tiretq\n"
+                   "5:\tmovl $0xc000000d,%edx\n\t" /* STATUS_INVALID_PARAMETER */
+                   "movq %rsp,%rcx\n"
+                   __ASM_NAME("__wine_syscall_dispatcher_return") ":\n\t"
+                   "movl 0xb0(%rcx),%r14d\n\t"     /* frame->syscall_flags */
+                   "movq %rdx,%rax\n\t"
+                   "jmp 2b" )
 
 #endif  /* __x86_64__ */
