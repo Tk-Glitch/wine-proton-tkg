@@ -2957,6 +2957,7 @@ HKLM,%CurrentVersion%\Telephony\Country List\998,"SameAreaRule",,"G"
 16422,Windows NT\Accessories,wordpad.exe
 16427,System\OLE DB,oledb32.dll
 16427,System\OLE DB,msdaps.dll
+16427,System\OLE DB,msdasql.dll
 16427,System\ADO,msado15.dll
 66000,3,wineps.drv
 12,,*.sys,-
@@ -2967,6 +2968,7 @@ HKLM,%CurrentVersion%\Telephony\Country List\998,"SameAreaRule",,"G"
 ; create some directories first
 10,help,
 10,logs,
+10,performance\winsat\datastore,
 10,tasks,
 10,temp,
 11,catroot,
@@ -3017,6 +3019,7 @@ HKLM,%CurrentVersion%\Telephony\Country List\998,"SameAreaRule",,"G"
 16427,Microsoft Shared\TextConv,
 16427,System\OLE DB,oledb32.dll
 16427,System\OLE DB,msdaps.dll
+16427,System\OLE DB,msdasql.dll
 16427,System\ADO,msado15.dll
 66000,3,wineps.drv
 12,,*.sys
