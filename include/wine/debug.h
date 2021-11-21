@@ -150,6 +150,7 @@ extern int __cdecl __wine_dbg_output( const char *str );
 extern int __cdecl __wine_dbg_header( enum __wine_debug_class cls, struct __wine_debug_channel *channel,
                                       const char *function );
 extern void __cdecl __wine_set_unix_env( const char *var, const char *val );
+extern void __cdecl __wine_unset_unix_env( const char *var );
 
 /*
  * Exported definitions and macros

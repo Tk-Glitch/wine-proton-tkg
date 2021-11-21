@@ -689,3 +689,8 @@ void __cdecl __wine_set_unix_env( const char *var, const char *val)
 {
     unix_funcs->set_unix_env( var, val );
 }
+
+void __cdecl __wine_unset_unix_env( const char *var )
+{
+    unix_funcs->unset_unix_env( var );
+}

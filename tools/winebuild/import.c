@@ -20,7 +20,6 @@
  */
 
 #include "config.h"
-#include "wine/port.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -28,12 +27,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-#ifdef HAVE_SYS_STAT_H
-# include <sys/stat.h>
-#endif
-#ifdef HAVE_UNISTD_H
-# include <unistd.h>
-#endif
 
 #include "wine/list.h"
 #include "build.h"
@@ -329,9 +322,7 @@ static char *get_dll_name( const char *name, const char *filename )
 
     if (filename)
     {
-        const char *basename = strrchr( filename, '/' );
-        if (!basename) basename = filename;
-        else basename++;
+        const char *basename = get_basename( filename );
         if (!strncmp( basename, "lib", 3 )) basename += 3;
         ret = xmalloc( strlen(basename) + 5 );
         strcpy( ret, basename );

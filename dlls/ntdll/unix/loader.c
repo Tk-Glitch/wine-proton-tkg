@@ -347,6 +347,7 @@ static void * const syscalls[] =
     __wine_dbg_write,
     __wine_needs_override_large_address_aware,
     __wine_unix_call,
+    __wine_unix_spawnvp,
     wine_nt_to_unix_file_name,
     wine_server_call,
     wine_server_fd_to_handle,
@@ -2286,6 +2287,7 @@ static struct unix_funcs unix_funcs =
     unwind_builtin_dll,
     steamclient_setup_trampolines,
     set_unix_env,
+    unset_unix_env,
 };
 
 BOOL ac_odyssey;
