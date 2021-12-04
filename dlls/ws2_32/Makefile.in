@@ -2,7 +2,7 @@ MODULE    = ws2_32.dll
 UNIXLIB   = ws2_32.so
 IMPORTLIB = ws2_32
 IMPORTS = kernelbase
-DELAYIMPORTS = advapi32 iphlpapi user32
+DELAYIMPORTS = dnsapi advapi32 iphlpapi user32
 
 C_SRCS = \
 	async.c \
