@@ -34,6 +34,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <dlfcn.h>
 #ifdef HAVE_PWD_H
@@ -48,14 +50,8 @@
 #ifdef HAVE_SYS_AUXV_H
 # include <sys/auxv.h>
 #endif
-#ifdef HAVE_SYS_MMAN_H
-# include <sys/mman.h>
-#endif
 #ifdef HAVE_SYS_RESOURCE_H
 # include <sys/resource.h>
-#endif
-#ifdef HAVE_SYS_WAIT_H
-#include <sys/wait.h>
 #endif
 #include <limits.h>
 #ifdef HAVE_SYS_SYSCTL_H
@@ -2273,12 +2269,12 @@ static struct unix_funcs unix_funcs =
     init_unix_lib,
     unwind_builtin_dll,
     RtlGetSystemTimePrecise,
-    steamclient_setup_trampolines,
-    set_unix_env,
-    unset_unix_env,
 #ifdef __aarch64__
     NtCurrentTeb,
 #endif
+    steamclient_setup_trampolines,
+    set_unix_env,
+    unset_unix_env,
 };
 
 BOOL ac_odyssey;

@@ -31,9 +31,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#ifdef HAVE_TERMIOS_H
-# include <termios.h>
-#endif
+#include <termios.h>
 
 #include "unixlib.h"
 
