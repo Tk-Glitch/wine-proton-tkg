@@ -3449,6 +3449,8 @@ static HRESULT STDMETHODCALLTYPE d3d11_device_CreateRenderTargetView(ID3D11Devic
 
     TRACE("iface %p, resource %p, desc %p, view %p.\n", iface, resource, desc, view);
 
+    *view = NULL;
+
     if (!resource)
         return E_INVALIDARG;
 
@@ -6075,6 +6077,8 @@ static HRESULT STDMETHODCALLTYPE d3d10_device_CreateRenderTargetView(ID3D10Devic
     HRESULT hr;
 
     TRACE("iface %p, resource %p, desc %p, view %p.\n", iface, resource, desc, view);
+
+    *view = NULL;
 
     if (!resource)
         return E_INVALIDARG;
