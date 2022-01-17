@@ -1,15 +1,16 @@
-# Last proton_dist configuration - Tue Dec 21 11:12:11 AM CET 2021 :
+# Last proton_dist configuration - Mon Jan 17 06:33:15 PM CET 2022 :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 7.0rc2.r0.g2f5f8b4bd4c
-Using wine-staging patchset (version 7.0rc2.r0.g8f579c4e)
+Wine (plain) version: 7.0rc3.r0.gdc08a2d5eac
+Using wine-staging patchset (version 7.0rc3.r0.g93e94fcb)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
 
 Done applying reverting hotfixes (if any) - list available in prepare.log
 
+Applied reverting hotfix staging-fa5989b.mystagingrevert
 Applied reverting hotfix staging-pulseaudio-reverts.mystagingrevert
 Applied hotfix commit-155e98e.mystagingpatch
 Applied hotfix staging-reenable-pulse.mystagingpatch

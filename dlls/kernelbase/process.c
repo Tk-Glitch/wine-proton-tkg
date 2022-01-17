@@ -35,6 +35,7 @@
 
 #include "kernelbase.h"
 #include "wine/debug.h"
+#include "wine/condrv.h"
 #include "wine/heap.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(process);
@@ -192,7 +193,7 @@ static RTL_USER_PROCESS_PARAMETERS *create_process_params( const WCHAR *filename
     RtlFreeUnicodeString( &newdirW );
 
     if (flags & CREATE_NEW_PROCESS_GROUP) params->ConsoleFlags = 1;
-    if (flags & CREATE_NEW_CONSOLE) params->ConsoleHandle = (HANDLE)1; /* KERNEL32_CONSOLE_ALLOC */
+    if (flags & CREATE_NEW_CONSOLE) params->ConsoleHandle = CONSOLE_HANDLE_ALLOC;
     else if (!(flags & DETACHED_PROCESS)) params->ConsoleHandle = NtCurrentTeb()->Peb->ProcessParameters->ConsoleHandle;
 
     if (startup->dwFlags & STARTF_USESTDHANDLES)
