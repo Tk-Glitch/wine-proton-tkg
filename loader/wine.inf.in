@@ -185,14 +185,14 @@ WineFakeDlls=FakeDllsWin32
 
 [DefaultInstall.Services]
 AddService=BITS,0,BITSService
-AddService=EventLog,0,EventLogService
+AddService=EventLog,0x800,EventLogService
 AddService=HTTP,0,HTTPService
 AddService=MSIServer,0,MSIService
 AddService=RpcSs,0,RpcSsService
 AddService=Spooler,0,SpoolerService
 AddService=StiSvc,0,StiService
 AddService=TermService,0,TerminalServices
-AddService=PlugPlay,0,PlugPlayService
+AddService=PlugPlay,0x800,PlugPlayService
 AddService=FontCache3.0.0.0,0,WPFFontCacheService
 AddService=LanmanServer,0,LanmanServerService
 AddService=FontCache,0,FontCacheService
@@ -204,14 +204,14 @@ AddService=nsiproxy,0x800,NsiProxyService
 
 [DefaultInstall.NT.Services]
 AddService=BITS,0,BITSService
-AddService=EventLog,0,EventLogService
+AddService=EventLog,0x800,EventLogService
 AddService=HTTP,0,HTTPService
 AddService=MSIServer,0,MSIService
 AddService=RpcSs,0,RpcSsService
 AddService=Spooler,0,SpoolerService
 AddService=StiSvc,0,StiService
 AddService=TermService,0,TerminalServices
-AddService=PlugPlay,0,PlugPlayService
+AddService=PlugPlay,0x800,PlugPlayService
 AddService=FontCache3.0.0.0,0,WPFFontCacheService
 AddService=LanmanServer,0,LanmanServerService
 AddService=FontCache,0,FontCacheService
@@ -223,14 +223,14 @@ AddService=nsiproxy,0x800,NsiProxyService
 
 [DefaultInstall.ntamd64.Services]
 AddService=BITS,0,BITSService
-AddService=EventLog,0,EventLogService
+AddService=EventLog,0x800,EventLogService
 AddService=HTTP,0,HTTPService
 AddService=MSIServer,0,MSIService
 AddService=RpcSs,0,RpcSsService
 AddService=Spooler,0,SpoolerService
 AddService=StiSvc,0,StiService
 AddService=TermService,0,TerminalServices
-AddService=PlugPlay,0,PlugPlayService
+AddService=PlugPlay,0x800,PlugPlayService
 AddService=FontCache3.0.0.0,0,WPFFontCacheService
 AddService=LanmanServer,0,LanmanServerService
 AddService=FontCache,0,FontCacheService
@@ -242,14 +242,14 @@ AddService=nsiproxy,0x800,NsiProxyService
 
 [DefaultInstall.ntarm64.Services]
 AddService=BITS,0,BITSService
-AddService=EventLog,0,EventLogService
+AddService=EventLog,0x800,EventLogService
 AddService=HTTP,0,HTTPService
 AddService=MSIServer,0,MSIService
 AddService=RpcSs,0,RpcSsService
 AddService=Spooler,0,SpoolerService
 AddService=StiSvc,0,StiService
 AddService=TermService,0,TerminalServices
-AddService=PlugPlay,0,PlugPlayService
+AddService=PlugPlay,0x800,PlugPlayService
 AddService=FontCache3.0.0.0,0,WPFFontCacheService
 AddService=LanmanServer,0,LanmanServerService
 AddService=FontCache,0,FontCacheService
@@ -6017,6 +6017,7 @@ protocol,"@%11%\ws2_32.dll,-3"
 services,"@%11%\ws2_32.dll,-4"
 
 [InfFiles]
+input.inf,"@%12%\hidclass.sys,-1"
 winebus.inf,"@%12%\winebus.sys,-1"
 winehid.inf,"@%12%\winehid.sys,-1"
 wineusb.inf,"@%12%\wineusb.sys,-1"

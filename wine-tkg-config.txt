@@ -1,9 +1,9 @@
-# Last proton_dist configuration - Wed Jan 19 05:19:01 PM CET 2022 :
+# Last proton_dist configuration - mar. 19 avril 2022 16:08:53 CEST :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 7.0.r0.gc7c729c0db7
-Using wine-staging patchset (version 7.0.r0.g2fc92f8b)
+Wine (plain) version: 7.1.r0.g594e431e36d
+Using wine-staging patchset (version 7.1.r0.gf5ca8f5a)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
@@ -77,43 +77,47 @@ Applied hotfix 0038-mfplat-Stub-out-MFCreateDXGIDeviceManager-to-avoid-t.myearly
 steam.patch -- ( Applied steam crossover hack )
 CSMT-toggle.patch -- ( Applied CSMT toggle logic patch )
 
-Staging overrides, if any: -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW
+Staging overrides, if any: -W stdole32.tlb-SLTG_Typelib -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W xactengine3_7-callbacks -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW
 
 use_clock_monotonic-staging.patch -- ( Applied clock_monotonic patch )
 assettocorsa_hud_perf-proton.patch -- ( Applied Assetto Corsa HUD performance fix (proton edition) )
 mk11.patch -- ( Applied Mortal Kombat 11 fix )
-fsync-unix-staging.patch -- ( Applied fsync, an experimental replacement for esync (unix, staging) )
+fsync-unix-staging-5b56bad.patch -- ( Applied fsync, an experimental replacement for esync (unix, staging) )
 server_Abort_waiting_on_a_completion_port_when_closing_it.patch -- ( Added Abort waiting on a completion port when closing it Proton patch )
-fsync_futex_waitv.patch -- ( Replace all fsync interfaces with futex_waitv )
+fsync_futex_waitv-5b56bad.patch -- ( Replace all fsync interfaces with futex_waitv )
 
-valve_proton_fullscreen_hack-staging.patch -- ( Applied Proton fullscreen hack patch (staging) )
+valve_proton_fullscreen_hack-staging-656edbb.patch -- ( Applied Proton fullscreen hack patch (656edbb) )
 LAA-unix-staging.patch -- ( Applied large address aware override support )
-proton-tkg-steamclient-swap.patch -- ( Applied steamclient substitution hack )
+proton-tkg-steamclient-swap-656edbb.patch -- ( Applied steamclient substitution hack )
 
-proton-tkg-staging.patch -- ( Using Steam-specific Proton-tkg patches (staging) 2/3 )
-proton-steam-bits.patch -- ( Using Steam-specific Proton-tkg patches (staging) 3/3 )
+proton-tkg-staging-96aa7bc.patch -- ( Using Steam-specific Proton-tkg patches (staging-96aa7bc) 2/2 )
+proton-steam-bits-656edbb.patch -- ( Using Steam-specific Proton-tkg patches (staging) 3/3 )
 rdr2.patch -- ( Enable Proton's RDR2 fixes from Paul Gofman )
 quake_champions_fix.patch -- ( Enable Proton's Quake Champions fixes from Paul Gofman )
 proton-cpu-topology-overrides.patch -- ( Enable Proton's CPU topology override support )
-proton-vr.patch -- ( Enable Proton vr-related wined3d additions )
+proton-vr-831ff10.patch -- ( Enable Proton vr-related wined3d additions )
 msvcrt_nativebuiltin.patch -- ( Enforce msvcrt Dlls to native then builtin (from Proton) )
 josh-flat-theme.patch -- ( Add Josh's better-theme )
 proton-win10-default-staging.patch -- ( Enforce win10 as default wine version (staging) )
 dxvk_config_dxgi_support.patch -- ( Add support for dxvk_config library to Wine's dxgi )
-proton_battleye.patch -- ( Add support for Proton's Battleye runtime )
+proton_battleye-15bf49b.patch -- ( Add support for Proton's Battleye runtime )
 
+Applied reverting hotfix f0cd33c.myrevert
+Applied reverting hotfix f0cd33c-1.myrevert
 Applied reverting hotfix d8be858.myrevert
+Applied hotfix stdole32.tlb.mypatch
 Applied hotfix 0004-winevulkan1.mypatch
 Applied hotfix Return_nt_filename_and_resolve_DOS_drive_path.mypatch
 Applied hotfix ef6e33f.mypatch
 Applied hotfix 0001-proton-bcrypt_rdr2_fixes3.mypatch
 Applied hotfix 0002-bcrypt-Add-support-for-calculating-secret-ecc-keys.mypatch
 Applied hotfix a608ef1.mypatch
-Applied your own patch 0001-ntdll-Use-kernel-soft-dirty-flags-for-write-watches-.mypatch
 Applied your own patch FinalFantasyXVHack.mypatch
+Applied your own patch Shell32-CreateDirectoryInDestinationInFileOp-Move-multiop.mypatch
 Applied your own patch amdags-proton.mypatch
 Applied your own patch atiadlxx-proton.mypatch
 Applied your own patch ntdll_Map_top-down_if_dll_characteristics_include_DYNAMIC_BASE.mypatch
 Applied your own patch unhide-prefix-update-window.mypatch
+Applied your own patch winex11_limit_resources-nmode.mypatch
 
 wine-tkg-staging.patch -- ( Please don't report bugs about this wine build on winehq.org and use https://github.com/Frogging-Family/wine-tkg-git/issues instead. )

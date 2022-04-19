@@ -543,9 +543,9 @@ int set_sd_defaults_from_token( struct object *obj, const struct security_descri
 {
     struct security_descriptor new_sd, *new_sd_ptr;
     int present;
-    const SID *owner = NULL, *group = NULL;
-    const ACL *sacl, *dacl;
-    ACL *replaced_sacl = NULL;
+    const struct sid *owner = NULL, *group = NULL;
+    const struct acl *sacl, *dacl;
+    struct acl *replaced_sacl = NULL;
     char *ptr;
 
     if (!set_info) return 1;
@@ -565,7 +565,7 @@ int set_sd_defaults_from_token( struct object *obj, const struct security_descri
     else if (token)
     {
         owner = token_get_user( token );
-        new_sd.owner_len = security_sid_len( owner );
+        new_sd.owner_len = sid_len( owner );
     }
     else new_sd.owner_len = 0;
 
@@ -582,7 +582,7 @@ int set_sd_defaults_from_token( struct object *obj, const struct security_descri
     else if (token)
     {
         group = token_get_primary_group( token );
-        new_sd.group_len = security_sid_len( group );
+        new_sd.group_len = sid_len( group );
     }
     else new_sd.group_len = 0;
 
@@ -594,11 +594,11 @@ int set_sd_defaults_from_token( struct object *obj, const struct security_descri
     }
     else if (set_info & LABEL_SECURITY_INFORMATION && present)
     {
-        const ACL *old_sacl = NULL;
+        const struct acl *old_sacl = NULL;
         if (obj->sd && obj->sd->control & SE_SACL_PRESENT) old_sacl = sd_get_sacl( obj->sd, &present );
         if (!(replaced_sacl = replace_security_labels( old_sacl, sacl ))) return 0;
         new_sd.control |= SE_SACL_PRESENT;
-        new_sd.sacl_len = replaced_sacl->AclSize;
+        new_sd.sacl_len = replaced_sacl->size;
         sacl = replaced_sacl;
     }
     else
@@ -633,7 +633,7 @@ int set_sd_defaults_from_token( struct object *obj, const struct security_descri
         {
             dacl = token_get_default_dacl( token );
             new_sd.control |= SE_DACL_PRESENT;
-            new_sd.dacl_len = dacl->AclSize;
+            new_sd.dacl_len = dacl->size;
         }
         else new_sd.dacl_len = 0;
     }

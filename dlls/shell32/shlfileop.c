@@ -1436,8 +1436,9 @@ static void move_to_dir(FILE_OPERATION *op, const FILE_ENTRY *feFrom, const FILE
 /* the FO_MOVE operation */
 static int move_files(FILE_OPERATION *op, BOOL multidest, const FILE_LIST *flFrom, const FILE_LIST *flTo)
 {
-    DWORD i;
+    DWORD i, maxMoves;
     INT mismatched = 0;
+    BOOL targetIsDir = FALSE;
     const FILE_ENTRY *entryToMove;
     const FILE_ENTRY *fileDest;
 
@@ -1458,38 +1459,41 @@ static int move_files(FILE_OPERATION *op, BOOL multidest, const FILE_LIST *flFro
         return ERROR_CANCELLED;
     }
 
-    if (!PathFileExistsW(flTo->feFiles[0].szDirectory))
-    {
-        int ret = SHCreateDirectoryExW(NULL, flTo->feFiles[0].szDirectory, NULL);
-        if (ret)
-            return ret;
-    }
-
     if (multidest)
         mismatched = flFrom->dwNumFiles - flTo->dwNumFiles;
 
+    if (multidest && flFrom->dwNumFiles > flTo->dwNumFiles)
+        maxMoves = flTo->dwNumFiles;
+    else
+        maxMoves = flFrom->dwNumFiles;
+
+
     fileDest = &flTo->feFiles[0];
-    for (i = 0; i < flFrom->dwNumFiles; i++)
+    create_dest_dirs(fileDest->szDirectory);
+    targetIsDir = fileDest->bExists && IsAttribDir(fileDest->attributes);
+    for (i = 0; i < maxMoves; i++)
     {
         entryToMove = &flFrom->feFiles[i];
+
+        if (multidest)
+        {
+            fileDest = &flTo->feFiles[i];
+            if (mismatched && !fileDest->bExists)
+            {
+                create_dest_dirs(fileDest->szFullPath);
+                targetIsDir = TRUE;
+            }
+            else
+            {
+                create_dest_dirs(fileDest->szDirectory);
+                targetIsDir = fileDest->bExists && IsAttribDir(fileDest->attributes);
+            }
+        }
 
         if (!PathFileExistsW(fileDest->szDirectory))
             return ERROR_CANCELLED;
 
-        if (multidest)
-        {
-            if (i >= flTo->dwNumFiles)
-                break;
-            fileDest = &flTo->feFiles[i];
-            if (mismatched && !fileDest->bExists)
-            {
-                create_dest_dirs(flTo->feFiles[i].szFullPath);
-                flTo->feFiles[i].bExists = TRUE;
-                flTo->feFiles[i].attributes = FILE_ATTRIBUTE_DIRECTORY;
-            }
-        }
-
-        if (fileDest->bExists && IsAttribDir(fileDest->attributes))
+        if (targetIsDir)
             move_to_dir(op, entryToMove, fileDest);
         else
             SHNotifyMoveFileW(op, entryToMove->szFullPath, fileDest->szFullPath);
