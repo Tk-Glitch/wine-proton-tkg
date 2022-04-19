@@ -1,16 +1,16 @@
-# Last proton_dist configuration - mar. 19 avril 2022 16:13:26 CEST :
+# Last proton_dist configuration - mar. 19 avril 2022 16:14:29 CEST :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 7.5.r0.g4bbb43d6c7e
-Using wine-staging patchset (version 7.5.r0.g1e792e2d)
+Wine (plain) version: 7.6.r0.ga4e4e19fe0f
+Using wine-staging patchset (version 7.6.r0.g539ecd2f)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
 
 Done applying reverting hotfixes (if any) - list available in prepare.log
 
-Applied reverting hotfix win32u_reverts.mystagingrevert
+Applied reverting hotfix win32u_reverts5.mystagingrevert
 Applied hotfix commit-155e98e.mystagingpatch
 Applied hotfix protonify_stg_syscall_emu-009.mystagingpatch
 Applied reverting hotfix d4259ac8e93.myearlyrevert
@@ -30,7 +30,7 @@ valve_proton_fullscreen_hack-staging.patch -- ( Applied Proton fullscreen hack p
 LAA-unix-staging.patch -- ( Applied large address aware override support )
 proton-tkg-steamclient-swap.patch -- ( Applied steamclient substitution hack )
 
-proton-tkg-staging-7ba3c31.patch -- ( Using Steam-specific Proton-tkg patches (staging-7ba3c31) 2/2 )
+proton-tkg-staging-22fa68b.patch -- ( Using Steam-specific Proton-tkg patches (staging-22fa68b) 2/2 )
 proton-steam-bits.patch -- ( Using Steam-specific Proton-tkg patches (staging) 3/3 )
 proton-tabtip.patch -- ( Enable Proton's SteamDeck additions )
 rdr2.patch -- ( Enable Proton's RDR2 fixes from Paul Gofman )
@@ -44,18 +44,19 @@ dxvk_config_dxgi_support.patch -- ( Add support for dxvk_config library to Wine'
 proton_battleye.patch -- ( Add support for Proton's Battleye runtime )
 proton-eac_bridge.patch -- ( Add support for Proton's EAC bridge )
 
+Applied hotfix remove_hooks_that_time_out-legacy.mypatch
+Applied hotfix user32.implement_rudimentary_EnableMouseInPointer_support.mypatch
 Applied hotfix stdole32.tlb.mypatch
 Applied hotfix Return_nt_filename_and_resolve_DOS_drive_path.mypatch
 Applied hotfix ef6e33f.mypatch
 Applied hotfix 0001-proton-bcrypt_rdr2_fixes4.mypatch
 Applied hotfix 0002-bcrypt-Add-support-for-calculating-secret-ecc-keys.mypatch
 Applied hotfix a608ef1.mypatch
+Applied your own patch 0001-ntdll-Use-kernel-soft-dirty-flags-for-write-watches-.mypatch
 Applied your own patch FinalFantasyXVHack.mypatch
-Applied your own patch Shell32-CreateDirectoryInDestinationInFileOp-Move-multiop.mypatch
 Applied your own patch amdags-proton.mypatch
 Applied your own patch atiadlxx-proton.mypatch
 Applied your own patch ntdll_Map_top-down_if_dll_characteristics_include_DYNAMIC_BASE.mypatch
 Applied your own patch unhide-prefix-update-window.mypatch
-Applied your own patch winex11_limit_resources-nmode.mypatch
 
 wine-tkg-staging.patch -- ( Please don't report bugs about this wine build on winehq.org and use https://github.com/Frogging-Family/wine-tkg-git/issues instead. )
