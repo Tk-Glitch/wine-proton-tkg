@@ -422,13 +422,7 @@ NTSTATUS WINAPI NtQueryInformationToken( HANDLE token, TOKEN_INFORMATION_CLASS c
         {
             req->handle = wine_server_obj_handle( token );
             status = wine_server_call( req );
-            if (reply->session_id == 0)
-            {
-                *(DWORD *)info = 1;
-            } else if (!status)
-            {
-                *(DWORD *)info = reply->session_id;
-            }
+            if (!status) *(DWORD *)info = reply->session_id;
         }
         SERVER_END_REQ;
         break;

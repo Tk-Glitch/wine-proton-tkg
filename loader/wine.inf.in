@@ -6114,6 +6114,9 @@ HKCU,Software\Wine\DllOverrides,"atiadlxx",,"disabled"
 [NVIDIANGX]
 HKLM,Software\NVIDIA Corporation\Global\NGXCore,"FullPath",,"C:\Windows\System32"
 
+[ProtonOverrides]
+HKLM,Software\Khronos\OpenXR\1,"ActiveRuntime",,"C:\openxr\wineopenxr64.json"
+
 [NlsFiles]
 c_037.nls
 c_10000.nls

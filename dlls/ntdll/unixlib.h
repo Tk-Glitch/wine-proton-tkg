@@ -40,10 +40,10 @@ struct unix_funcs
 #ifdef __aarch64__
     TEB *         (WINAPI *NtCurrentTeb)(void);
 #endif
+
     /* steamclient HACK */
     void          (CDECL *steamclient_setup_trampolines)( HMODULE src_mod, HMODULE tgt_mod );
     void          (CDECL *set_unix_env)( const char *var, const char *val );
-    void          (CDECL *unset_unix_env)( const char *var );
 };
 
 #endif /* __NTDLL_UNIXLIB_H */

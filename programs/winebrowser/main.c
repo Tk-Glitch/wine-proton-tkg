@@ -70,7 +70,7 @@ static void restore_system_environment(void)
     if (orig_ld_path)
     {
         __wine_set_unix_env("LD_LIBRARY_PATH", orig_ld_path);
-        __wine_unset_unix_env("ORIG_LD_LIBRARY_PATH");
+        __wine_set_unix_env("ORIG_LD_LIBRARY_PATH", NULL);
     }
 }
 

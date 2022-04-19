@@ -817,7 +817,7 @@ static ULONG WINAPI dwritefontface_AddRef(IDWriteFontFace5 *iface)
     struct dwrite_fontface *fontface = impl_from_IDWriteFontFace5(iface);
     ULONG refcount = InterlockedIncrement(&fontface->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     return refcount;
 }
@@ -828,7 +828,7 @@ static ULONG WINAPI dwritefontface_Release(IDWriteFontFace5 *iface)
     ULONG refcount = InterlockedDecrement(&fontface->refcount);
     struct release_font_object_params params = { fontface->font_object };
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -2241,7 +2241,7 @@ static ULONG WINAPI dwritefont_AddRef(IDWriteFont3 *iface)
     struct dwrite_font *font = impl_from_IDWriteFont3(iface);
     ULONG refcount = InterlockedIncrement(&font->refcount);
 
-    TRACE("%p, refcount %d.\n", iface, refcount);
+    TRACE("%p, refcount %ld.\n", iface, refcount);
 
     return refcount;
 }
@@ -2251,7 +2251,7 @@ static ULONG WINAPI dwritefont_Release(IDWriteFont3 *iface)
     struct dwrite_font *font = impl_from_IDWriteFont3(iface);
     ULONG refcount = InterlockedDecrement(&font->refcount);
 
-    TRACE("%p, refcount %d.\n", iface, refcount);
+    TRACE("%p, refcount %ld.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -2609,7 +2609,7 @@ static ULONG WINAPI dwritefontlist_AddRef(IDWriteFontList2 *iface)
     struct dwrite_fontlist *fontlist = impl_from_IDWriteFontList2(iface);
     ULONG refcount = InterlockedIncrement(&fontlist->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     return refcount;
 }
@@ -2619,7 +2619,7 @@ static ULONG WINAPI dwritefontlist_Release(IDWriteFontList2 *iface)
     struct dwrite_fontlist *fontlist = impl_from_IDWriteFontList2(iface);
     ULONG refcount = InterlockedDecrement(&fontlist->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -2776,7 +2776,7 @@ static ULONG WINAPI dwritefontfamily_AddRef(IDWriteFontFamily2 *iface)
     struct dwrite_fontfamily *family = impl_from_IDWriteFontFamily2(iface);
     ULONG refcount = InterlockedIncrement(&family->refcount);
 
-    TRACE("%p, %u.\n", iface, refcount);
+    TRACE("%p, %lu.\n", iface, refcount);
 
     return refcount;
 }
@@ -2786,7 +2786,7 @@ static ULONG WINAPI dwritefontfamily_Release(IDWriteFontFamily2 *iface)
     struct dwrite_fontfamily *family = impl_from_IDWriteFontFamily2(iface);
     ULONG refcount = InterlockedDecrement(&family->refcount);
 
-    TRACE("%p, %u.\n", iface, refcount);
+    TRACE("%p, %lu.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -3242,7 +3242,7 @@ static ULONG WINAPI dwritefontcollection_AddRef(IDWriteFontCollection3 *iface)
     struct dwrite_fontcollection *collection = impl_from_IDWriteFontCollection3(iface);
     ULONG refcount = InterlockedIncrement(&collection->refcount);
 
-    TRACE("%p, refcount %d.\n", collection, refcount);
+    TRACE("%p, refcount %ld.\n", collection, refcount);
 
     return refcount;
 }
@@ -3253,7 +3253,7 @@ static ULONG WINAPI dwritefontcollection_Release(IDWriteFontCollection3 *iface)
     ULONG refcount = InterlockedDecrement(&collection->refcount);
     size_t i;
 
-    TRACE("%p, refcount %d.\n", iface, refcount);
+    TRACE("%p, refcount %ld.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -4691,7 +4691,7 @@ HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerat
         /* Unsupported formats are skipped. */
         hr = opentype_analyze_font(stream, &supported, &file_type, &face_type, &face_count);
         if (FAILED(hr) || !supported || face_count == 0) {
-            TRACE("Unsupported font (%p, 0x%08x, %d, %u)\n", file, hr, supported, face_count);
+            TRACE("Unsupported font (%p, 0x%08lx, %d, %u)\n", file, hr, supported, face_count);
             IDWriteFontFileStream_Release(stream);
             IDWriteFontFile_Release(file);
             hr = S_OK;
@@ -5027,7 +5027,7 @@ static HRESULT eudc_collection_add_family(IDWriteFactory7 *factory, struct dwrit
     /* Unsupported formats are skipped. */
     hr = opentype_analyze_font(stream, &supported, &file_type, &face_type, &face_count);
     if (FAILED(hr) || !supported || face_count == 0) {
-        TRACE("Unsupported font (%p, 0x%08x, %d, %u)\n", file, hr, supported, face_count);
+        TRACE("Unsupported font (%p, 0x%08lx, %d, %u)\n", file, hr, supported, face_count);
         IDWriteFontFileStream_Release(stream);
         IDWriteFontFile_Release(file);
         return S_FALSE;
@@ -5144,7 +5144,7 @@ HRESULT get_eudc_fontcollection(IDWriteFactory7 *factory, IDWriteFontCollection3
     {
         hr = eudc_collection_add_family(factory, collection, L"", L"EUDC.TTE");
         if (hr != S_OK)
-            WARN("failed to add global default EUDC font, 0x%08x\n", hr);
+            WARN("failed to add global default EUDC font, 0x%08lx\n", hr);
     }
 
     /* EUDC collection offers simulated faces too */
@@ -5179,7 +5179,7 @@ static ULONG WINAPI dwritefontfile_AddRef(IDWriteFontFile *iface)
     struct dwrite_fontfile *file = impl_from_IDWriteFontFile(iface);
     ULONG refcount = InterlockedIncrement(&file->refcount);
 
-    TRACE("%p, refcount %d.\n", iface, refcount);
+    TRACE("%p, refcount %ld.\n", iface, refcount);
 
     return refcount;
 }
@@ -5189,7 +5189,7 @@ static ULONG WINAPI dwritefontfile_Release(IDWriteFontFile *iface)
     struct dwrite_fontfile *file = impl_from_IDWriteFontFile(iface);
     ULONG refcount = InterlockedDecrement(&file->refcount);
 
-    TRACE("%p, refcount %d.\n", iface, refcount);
+    TRACE("%p, refcount %ld.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -5557,7 +5557,7 @@ static ULONG WINAPI localfontfilestream_AddRef(IDWriteFontFileStream *iface)
     struct dwrite_localfontfilestream *stream = impl_from_IDWriteFontFileStream(iface);
     ULONG refcount = InterlockedIncrement(&stream->refcount);
 
-    TRACE_(dwrite_file)("%p, refcount %d.\n", iface, refcount);
+    TRACE_(dwrite_file)("%p, refcount %ld.\n", iface, refcount);
 
     return refcount;
 }
@@ -5574,7 +5574,7 @@ static ULONG WINAPI localfontfilestream_Release(IDWriteFontFileStream *iface)
     struct dwrite_localfontfilestream *stream = impl_from_IDWriteFontFileStream(iface);
     ULONG refcount = InterlockedDecrement(&stream->refcount);
 
-    TRACE_(dwrite_file)("%p, refcount %d.\n", iface, refcount);
+    TRACE_(dwrite_file)("%p, refcount %ld.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -5696,7 +5696,7 @@ static ULONG WINAPI localfontfileloader_AddRef(IDWriteLocalFontFileLoader *iface
     struct dwrite_localfontfileloader *loader = impl_from_IDWriteLocalFontFileLoader(iface);
     ULONG refcount = InterlockedIncrement(&loader->refcount);
 
-    TRACE("%p, refcount %d.\n", iface, refcount);
+    TRACE("%p, refcount %ld.\n", iface, refcount);
 
     return refcount;
 }
@@ -5706,7 +5706,7 @@ static ULONG WINAPI localfontfileloader_Release(IDWriteLocalFontFileLoader *ifac
     struct dwrite_localfontfileloader *loader = impl_from_IDWriteLocalFontFileLoader(iface);
     ULONG refcount = InterlockedDecrement(&loader->refcount);
 
-    TRACE("%p, refcount %d.\n", iface, refcount);
+    TRACE("%p, refcount %ld.\n", iface, refcount);
 
     return refcount;
 }
@@ -5726,7 +5726,7 @@ static HRESULT create_local_cached_stream(const void *key, UINT32 key_size, stru
     file = CreateFileW(refkey->name, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE,
             NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (file == INVALID_HANDLE_VALUE) {
-        WARN_(dwrite_file)("Failed to open the file %s, error %d.\n", debugstr_w(refkey->name), GetLastError());
+        WARN_(dwrite_file)("Failed to open the file %s, error %ld.\n", debugstr_w(refkey->name), GetLastError());
         return E_FAIL;
     }
 
@@ -5739,7 +5739,7 @@ static HRESULT create_local_cached_stream(const void *key, UINT32 key_size, stru
     file_ptr = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0);
     CloseHandle(mapping);
     if (!file_ptr) {
-        ERR("mapping failed, file size %s, error %d\n", wine_dbgstr_longlong(size.QuadPart), GetLastError());
+        ERR("mapping failed, file size %s, error %ld\n", wine_dbgstr_longlong(size.QuadPart), GetLastError());
         return E_FAIL;
     }
 
@@ -5921,7 +5921,7 @@ static ULONG WINAPI glyphrunanalysis_AddRef(IDWriteGlyphRunAnalysis *iface)
     struct dwrite_glyphrunanalysis *analysis = impl_from_IDWriteGlyphRunAnalysis(iface);
     ULONG refcount = InterlockedIncrement(&analysis->refcount);
 
-    TRACE("%p, refcount %d.\n", iface, refcount);
+    TRACE("%p, refcount %ld.\n", iface, refcount);
 
     return refcount;
 }
@@ -5931,7 +5931,7 @@ static ULONG WINAPI glyphrunanalysis_Release(IDWriteGlyphRunAnalysis *iface)
     struct dwrite_glyphrunanalysis *analysis = impl_from_IDWriteGlyphRunAnalysis(iface);
     ULONG refcount = InterlockedDecrement(&analysis->refcount);
 
-    TRACE("%p, refcount %d.\n", iface, refcount);
+    TRACE("%p, refcount %ld.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -6370,7 +6370,7 @@ static ULONG WINAPI colorglyphenum_AddRef(IDWriteColorGlyphRunEnumerator1 *iface
     struct dwrite_colorglyphenum *glyphenum = impl_from_IDWriteColorGlyphRunEnumerator1(iface);
     ULONG refcount = InterlockedIncrement(&glyphenum->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     return refcount;
 }
@@ -6380,7 +6380,7 @@ static ULONG WINAPI colorglyphenum_Release(IDWriteColorGlyphRunEnumerator1 *ifac
     struct dwrite_colorglyphenum *glyphenum = impl_from_IDWriteColorGlyphRunEnumerator1(iface);
     ULONG refcount = InterlockedDecrement(&glyphenum->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -6470,7 +6470,7 @@ static BOOL colorglyphenum_build_color_run(struct dwrite_colorglyphenum *glyphen
                     HRESULT hr = IDWriteFontFace5_GetPaletteEntries(glyphenum->fontface, glyphenum->palette,
                             colorrun->paletteIndex, 1, &colorrun->runColor);
                     if (FAILED(hr))
-                        WARN("failed to get palette entry, fontface %p, palette %u, index %u, 0x%08x\n", glyphenum->fontface,
+                        WARN("failed to get palette entry, fontface %p, palette %u, index %u, 0x%08lx\n", glyphenum->fontface,
                             glyphenum->palette, colorrun->paletteIndex, hr);
                 }
                 /* found a glyph position new color run starts from, origin is "original origin + distance to this glyph" */
@@ -6698,7 +6698,7 @@ static ULONG WINAPI fontfacereference_AddRef(IDWriteFontFaceReference1 *iface)
     struct dwrite_fontfacereference *reference = impl_from_IDWriteFontFaceReference1(iface);
     ULONG refcount = InterlockedIncrement(&reference->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     return refcount;
 }
@@ -6708,7 +6708,7 @@ static ULONG WINAPI fontfacereference_Release(IDWriteFontFaceReference1 *iface)
     struct dwrite_fontfacereference *reference = impl_from_IDWriteFontFaceReference1(iface);
     ULONG refcount = InterlockedDecrement(&reference->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -7005,7 +7005,7 @@ static ULONG WINAPI inmemoryfilestream_AddRef(IDWriteFontFileStream *iface)
     struct dwrite_inmemory_filestream *stream = inmemory_impl_from_IDWriteFontFileStream(iface);
     ULONG refcount = InterlockedIncrement(&stream->refcount);
 
-    TRACE_(dwrite_file)("%p, refcount %u.\n", iface, refcount);
+    TRACE_(dwrite_file)("%p, refcount %lu.\n", iface, refcount);
 
     return refcount;
 }
@@ -7015,7 +7015,7 @@ static ULONG WINAPI inmemoryfilestream_Release(IDWriteFontFileStream *iface)
     struct dwrite_inmemory_filestream *stream = inmemory_impl_from_IDWriteFontFileStream(iface);
     ULONG refcount = InterlockedDecrement(&stream->refcount);
 
-    TRACE_(dwrite_file)("%p, refcount %u.\n", iface, refcount);
+    TRACE_(dwrite_file)("%p, refcount %lu.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -7106,7 +7106,7 @@ static ULONG WINAPI inmemoryfontfileloader_AddRef(IDWriteInMemoryFontFileLoader 
     struct dwrite_inmemory_fileloader *loader = impl_from_IDWriteInMemoryFontFileLoader(iface);
     ULONG refcount = InterlockedIncrement(&loader->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     return refcount;
 }
@@ -7117,7 +7117,7 @@ static ULONG WINAPI inmemoryfontfileloader_Release(IDWriteInMemoryFontFileLoader
     ULONG refcount = InterlockedDecrement(&loader->refcount);
     size_t i;
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -7260,7 +7260,7 @@ static ULONG WINAPI dwritefontresource_AddRef(IDWriteFontResource *iface)
     struct dwrite_fontresource *resource = impl_from_IDWriteFontResource(iface);
     ULONG refcount = InterlockedIncrement(&resource->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     return refcount;
 }
@@ -7270,7 +7270,7 @@ static ULONG WINAPI dwritefontresource_Release(IDWriteFontResource *iface)
     struct dwrite_fontresource *resource = impl_from_IDWriteFontResource(iface);
     ULONG refcount = InterlockedDecrement(&resource->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -7463,7 +7463,7 @@ static ULONG WINAPI dwritefontset_AddRef(IDWriteFontSet3 *iface)
     struct dwrite_fontset *set = impl_from_IDWriteFontSet3(iface);
     ULONG refcount = InterlockedIncrement(&set->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     return refcount;
 }
@@ -7548,7 +7548,7 @@ static ULONG WINAPI dwritefontset_Release(IDWriteFontSet3 *iface)
     ULONG refcount = InterlockedDecrement(&set->refcount);
     unsigned int i;
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     if (!refcount)
     {
@@ -8020,7 +8020,7 @@ static ULONG WINAPI dwritefontsetbuilder_AddRef(IDWriteFontSetBuilder2 *iface)
     struct dwrite_fontset_builder *builder = impl_from_IDWriteFontSetBuilder2(iface);
     ULONG refcount = InterlockedIncrement(&builder->refcount);
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     return refcount;
 }
@@ -8031,7 +8031,7 @@ static ULONG WINAPI dwritefontsetbuilder_Release(IDWriteFontSetBuilder2 *iface)
     ULONG refcount = InterlockedDecrement(&builder->refcount);
     unsigned int i;
 
-    TRACE("%p, refcount %u.\n", iface, refcount);
+    TRACE("%p, refcount %lu.\n", iface, refcount);
 
     if (!refcount)
     {

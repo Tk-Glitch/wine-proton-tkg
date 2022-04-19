@@ -196,10 +196,11 @@ extern NTSTATUS get_thread_context( HANDLE handle, void *context, BOOL *self, US
 extern NTSTATUS alloc_object_attributes( const OBJECT_ATTRIBUTES *attr, struct object_attributes **ret,
                                          data_size_t *ret_len ) DECLSPEC_HIDDEN;
 
-extern void *steamclient_handle_fault( LPCVOID addr, DWORD err ) DECLSPEC_HIDDEN;
-
 extern void *anon_mmap_fixed( void *start, size_t size, int prot, int flags ) DECLSPEC_HIDDEN;
 extern void *anon_mmap_alloc( size_t size, int prot ) DECLSPEC_HIDDEN;
+
+extern void *steamclient_handle_fault( LPCVOID addr, DWORD err ) DECLSPEC_HIDDEN;
+
 extern void virtual_init(void) DECLSPEC_HIDDEN;
 extern ULONG_PTR get_system_affinity_mask(void) DECLSPEC_HIDDEN;
 extern void virtual_get_system_info( SYSTEM_BASIC_INFORMATION *info, BOOL wow64 ) DECLSPEC_HIDDEN;
@@ -296,7 +297,6 @@ extern void call_raise_user_exception_dispatcher(void) DECLSPEC_HIDDEN;
 #define IMAGE_DLLCHARACTERISTICS_PREFER_NATIVE 0x0010 /* Wine extension */
 
 extern void CDECL set_unix_env(const char *var, const char *val) DECLSPEC_HIDDEN;
-extern void CDECL unset_unix_env(const char *var) DECLSPEC_HIDDEN;
 
 #define TICKSPERSEC 10000000
 #define SECS_1601_TO_1970  ((369 * 365 + 89) * (ULONGLONG)86400)
@@ -406,11 +406,15 @@ static inline client_ptr_t iosb_client_ptr( IO_STATUS_BLOCK *io )
 
 #ifdef _WIN64
 typedef TEB32 WOW_TEB;
+typedef PEB32 WOW_PEB;
 static inline TEB64 *NtCurrentTeb64(void) { return NULL; }
 #else
 typedef TEB64 WOW_TEB;
+typedef PEB64 WOW_PEB;
 static inline TEB64 *NtCurrentTeb64(void) { return (TEB64 *)NtCurrentTeb()->GdiBatchCount; }
 #endif
+
+extern WOW_PEB *wow_peb DECLSPEC_HIDDEN;
 
 static inline WOW_TEB *get_wow_teb( TEB *teb )
 {

@@ -59,6 +59,12 @@ enum ProviderType
     ProviderType_NonClientArea,
 };
 
+enum AsyncContentLoadedState {
+    AsyncContentLoadedState_Beginning,
+    AsyncContentLoadedState_Progress,
+    AsyncContentLoadedState_Completed,
+};
+
 typedef SAFEARRAY * WINAPI UiaProviderCallback(HWND hwnd,enum ProviderType providerType);
 
 HRESULT WINAPI UiaGetReservedMixedAttributeValue(IUnknown **value);
@@ -67,6 +73,15 @@ int WINAPI UiaLookupId(enum AutomationIdentifierType type, const GUID *guid);
 BOOL WINAPI UiaPatternRelease(HUIAPATTERNOBJECT hobj);
 HRESULT WINAPI UiaRaiseAutomationEvent(IRawElementProviderSimple *provider, EVENTID id);
 HRESULT WINAPI UiaRaiseAutomationPropertyChangedEvent(IRawElementProviderSimple *provider, PROPERTYID id, VARIANT old, VARIANT new);
+HRESULT WINAPI UiaRaiseAsyncContentLoadedEvent(IRawElementProviderSimple *provider,
+                                                enum AsyncContentLoadedState async_content_loaded_state, double percent_complete);
+HRESULT WINAPI UiaRaiseTextEditTextChangedEvent(IRawElementProviderSimple *provider, enum TextEditChangeType text_edit_change_type,
+                                                SAFEARRAY *changed_data);
+HRESULT WINAPI UiaRaiseStructureChangedEvent(IRawElementProviderSimple *provider, enum StructureChangeType struct_change_type,
+                                             int *runtime_id, int runtime_id_len);
+HRESULT WINAPI UiaRaiseNotificationEvent(IRawElementProviderSimple *provider, enum NotificationKind notification_kind,
+                                            enum NotificationProcessing notification_processing, BSTR display_str, BSTR activity_id);
+HRESULT WINAPI UiaRaiseChangesEvent(IRawElementProviderSimple *provider, int event_id_count, struct UiaChangeInfo *uia_changes);
 void WINAPI UiaRegisterProviderCallback(UiaProviderCallback *pCallback);
 LRESULT WINAPI UiaReturnRawElementProvider(HWND hwnd, WPARAM wParam, LPARAM lParam, IRawElementProviderSimple *elprov);
 BOOL WINAPI UiaTextRangeRelease(HUIATEXTRANGE hobj);

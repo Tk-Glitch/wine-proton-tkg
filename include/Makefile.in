@@ -15,7 +15,6 @@ SOURCES = \
 	amsi.idl \
 	amstream.idl \
 	amvideo.idl \
-	apiset.h \
 	appcompatapi.h \
 	appmgmt.h \
 	appmodel.h \
@@ -342,6 +341,7 @@ SOURCES = \
 	httprequest.idl \
 	httprequestid.h \
 	i_cryptasn1tls.h \
+        ia2api.idl \
 	iads.idl \
 	icftypes.idl \
 	icm.h \
@@ -781,6 +781,7 @@ SOURCES = \
 	windns.h \
 	windot11.h \
 	windows.devices.enumeration.idl \
+	windows.devices.haptics.idl \
 	windows.foundation.collections.idl \
 	windows.foundation.idl \
 	windows.gaming.input.forcefeedback.idl \

@@ -527,12 +527,15 @@ static const char *get_pe_dir( WORD machine )
 
 static void set_dll_path(void)
 {
-    char *p, *path = getenv( "WINEDLLPATH" ), *be_runtime = getenv( "PROTON_BATTLEYE_RUNTIME" );
+    char *p, *path = getenv( "WINEDLLPATH" ), *be_runtime = getenv( "PROTON_BATTLEYE_RUNTIME" ), *eac_runtime = getenv( "PROTON_EAC_RUNTIME" );
     int i, count = 0;
 
     if (path) for (p = path, count = 1; *p; p++) if (*p == ':') count++;
 
     if (be_runtime)
+        count += 2;
+
+    if (eac_runtime)
         count += 2;
 
     dll_paths = malloc( (count + 2) * sizeof(*dll_paths) );
@@ -560,6 +563,24 @@ static void set_dll_path(void)
 
         p = malloc( strlen(be_runtime) + strlen(lib64) + 1 );
         strcpy(p, be_runtime);
+        strcat(p, lib64);
+
+        dll_paths[count++] = p;
+    }
+
+    if (eac_runtime)
+    {
+        const char lib32[] = "/v2/lib32/";
+        const char lib64[] = "/v2/lib64/";
+
+        p = malloc( strlen(eac_runtime) + strlen(lib32) + 1 );
+        strcpy(p, eac_runtime);
+        strcat(p, lib32);
+
+        dll_paths[count++] = p;
+
+        p = malloc( strlen(eac_runtime) + strlen(lib64) + 1 );
+        strcpy(p, eac_runtime);
         strcat(p, lib64);
 
         dll_paths[count++] = p;
@@ -747,6 +768,7 @@ NTSTATUS exec_wineloader( char **argv, int socketfd, const pe_image_info_t *pe_i
     ULONGLONG res_end = pe_info->base + pe_info->map_size;
     const char *loader = argv0;
     const char *loader_env = getenv( "WINELOADER" );
+    const char *ld_preload = getenv( "LD_PRELOAD" );
     char preloader_reserve[64], socket_env[64];
     BOOL is_child_64bit;
 
@@ -779,6 +801,36 @@ NTSTATUS exec_wineloader( char **argv, int socketfd, const pe_image_info_t *pe_i
             putenv( env );
         }
         else loader = is_child_64bit ? "wine64" : "wine";
+    }
+
+    /* HACK: Unset LD_PRELOAD before executing explorer.exe to disable buggy gameoverlayrenderer.so */
+    if (ld_preload && argv[2] && !strcmp( argv[2], "C:\\windows\\system32\\explorer.exe" ) &&
+        argv[3] && !strcmp( argv[3], "/desktop" ))
+    {
+        static char const gorso[] = "gameoverlayrenderer.so";
+        static int gorso_len = sizeof(gorso) - 1;
+        int len = strlen( ld_preload );
+        char *next, *tmp, *env = malloc( sizeof("LD_PRELOAD=") + len );
+
+        if (!env) return STATUS_NO_MEMORY;
+        strcpy( env, "LD_PRELOAD=" );
+        strcat( env, ld_preload );
+
+        tmp = env + 11;
+        do
+        {
+            if (!(next = strchr( tmp, ':' ))) next = tmp + strlen( tmp );
+            if (next - tmp >= gorso_len && strncmp( next - gorso_len, gorso, gorso_len ) == 0)
+            {
+                if (*next) memmove( tmp, next + 1, strlen(next) );
+                else *tmp = 0;
+                next = tmp;
+            }
+            else tmp = next + 1;
+        }
+        while (*next);
+
+        putenv( env );
     }
 
     signal( SIGPIPE, SIG_DFL );
@@ -2019,6 +2071,81 @@ static void load_ntdll(void)
 
 
 /***********************************************************************
+ *           load_apiset_dll
+ */
+static void load_apiset_dll(void)
+{
+    static WCHAR path[] = {'\\','?','?','\\','C',':','\\','w','i','n','d','o','w','s','\\',
+                           's','y','s','t','e','m','3','2','\\',
+                           'a','p','i','s','e','t','s','c','h','e','m','a','.','d','l','l',0};
+    const char *pe_dir = get_pe_dir( current_machine );
+    const IMAGE_NT_HEADERS *nt;
+    const IMAGE_SECTION_HEADER *sec;
+    API_SET_NAMESPACE *map;
+    OBJECT_ATTRIBUTES attr;
+    UNICODE_STRING str;
+    NTSTATUS status;
+    HANDLE handle, mapping;
+    SIZE_T size;
+    char *name;
+    void *ptr;
+    UINT i;
+
+    init_unicode_string( &str, path );
+    InitializeObjectAttributes( &attr, &str, 0, 0, NULL );
+
+    name = malloc( strlen( ntdll_dir ) + strlen( pe_dir ) + sizeof("/apisetschema.dll") );
+    if (build_dir) sprintf( name, "%s/dlls/apisetschema/apisetschema.dll", build_dir );
+    else sprintf( name, "%s%s/apisetschema.dll", dll_dir, pe_dir );
+    status = open_unix_file( &handle, name, GENERIC_READ | SYNCHRONIZE, &attr, 0,
+                             FILE_SHARE_READ | FILE_SHARE_DELETE, FILE_OPEN,
+                             FILE_SYNCHRONOUS_IO_NONALERT | FILE_NON_DIRECTORY_FILE, NULL, 0 );
+    free( name );
+
+    if (!status)
+    {
+        status = NtCreateSection( &mapping, STANDARD_RIGHTS_REQUIRED | SECTION_QUERY | SECTION_MAP_READ,
+                                  NULL, NULL, PAGE_READONLY, SEC_COMMIT, handle );
+        NtClose( handle );
+    }
+    if (!status)
+    {
+        ptr = NULL;
+        size = 0;
+        status = NtMapViewOfSection( mapping, NtCurrentProcess(), &ptr,
+                                     is_win64 && wow_peb ? 0x7fffffff : 0, 0, NULL,
+                                     &size, ViewShare, 0, PAGE_READONLY );
+        NtClose( mapping );
+    }
+    if (!status)
+    {
+        nt = get_rva( ptr, ((IMAGE_DOS_HEADER *)ptr)->e_lfanew );
+        sec = (IMAGE_SECTION_HEADER *)((char *)&nt->OptionalHeader + nt->FileHeader.SizeOfOptionalHeader);
+
+        for (i = 0; i < nt->FileHeader.NumberOfSections; i++, sec++)
+        {
+            if (memcmp( (char *)sec->Name, ".apiset", 8 )) continue;
+            map = (API_SET_NAMESPACE *)((char *)ptr + sec->PointerToRawData);
+            if (sec->PointerToRawData < size &&
+                size - sec->PointerToRawData >= sec->Misc.VirtualSize &&
+                map->Version == 6 &&
+                map->Size <= sec->Misc.VirtualSize)
+            {
+                NtCurrentTeb()->Peb->ApiSetMap = map;
+                if (wow_peb) wow_peb->ApiSetMap = PtrToUlong(map);
+                TRACE( "loaded %s apiset at %p\n", debugstr_w(path), map );
+                return;
+            }
+            break;
+        }
+        NtUnmapViewOfSection( NtCurrentProcess(), ptr );
+        status = STATUS_APISET_NOT_PRESENT;
+    }
+    ERR( "failed to load apiset: %x\n", status );
+}
+
+
+/***********************************************************************
  *           load_wow64_ntdll
  */
 static void load_wow64_ntdll( USHORT machine )
@@ -2121,7 +2248,7 @@ static void CDECL steamclient_setup_trampolines(HMODULE src_mod, HMODULE tgt_mod
     IMAGE_NT_HEADERS *src_nt = (IMAGE_NT_HEADERS *)((UINT_PTR)src_mod + ((IMAGE_DOS_HEADER *)src_mod)->e_lfanew);
     IMAGE_NT_HEADERS *tgt_nt = (IMAGE_NT_HEADERS *)((UINT_PTR)tgt_mod + ((IMAGE_DOS_HEADER *)tgt_mod)->e_lfanew);
     IMAGE_SECTION_HEADER *src_sec = (IMAGE_SECTION_HEADER *)(src_nt + 1);
-    const IMAGE_EXPORT_DIRECTORY *src_exp = get_module_data_dir(src_mod, IMAGE_FILE_EXPORT_DIRECTORY, NULL), *tgt_exp = get_module_data_dir(tgt_mod, IMAGE_FILE_EXPORT_DIRECTORY, NULL);
+    const IMAGE_EXPORT_DIRECTORY *src_exp, *tgt_exp;
     const DWORD *names;
     SIZE_T size;
     void *addr, *src_addr, *tgt_addr;
@@ -2132,7 +2259,7 @@ static void CDECL steamclient_setup_trampolines(HMODULE src_mod, HMODULE tgt_mod
     if (noexec_cached == -1)
         noexec_cached = (wsne = getenv("WINESTEAMNOEXEC")) && atoi(wsne);
 
-    virtual_get_system_info(&info, FALSE);
+    virtual_get_system_info( &info, !!NtCurrentTeb()->WowTebOffset );
     page_mask = info.PageSize - 1;
 
     for (i = 0; i < src_nt->FileHeader.NumberOfSections; ++i)
@@ -2144,6 +2271,8 @@ static void CDECL steamclient_setup_trampolines(HMODULE src_mod, HMODULE tgt_mod
         else mprotect(addr, size, PROT_READ|PROT_WRITE|PROT_EXEC);
     }
 
+    src_exp = get_module_data_dir( src_mod, IMAGE_FILE_EXPORT_DIRECTORY, NULL );
+    tgt_exp = get_module_data_dir( tgt_mod, IMAGE_FILE_EXPORT_DIRECTORY, NULL );
     names = (const DWORD *)((UINT_PTR)src_mod + src_exp->AddressOfNames);
     for (i = 0; i < src_exp->NumberOfNames; ++i)
     {
@@ -2166,7 +2295,6 @@ static void CDECL steamclient_setup_trampolines(HMODULE src_mod, HMODULE tgt_mod
     else steamclient_count++;
 }
 
-
 /***********************************************************************
  *           unix_funcs
  */
@@ -2181,7 +2309,6 @@ static struct unix_funcs unix_funcs =
 #endif
     steamclient_setup_trampolines,
     set_unix_env,
-    unset_unix_env,
 };
 
 BOOL ac_odyssey;
@@ -2239,10 +2366,11 @@ static void start_main_thread(void)
     if (p___wine_main_wargv) *p___wine_main_wargv = main_wargv;
     *(ULONG_PTR *)&peb->CloudFileFlags = get_image_address();
     set_load_order_app_name( main_wargv[0] );
-    init_thread_stack( teb, is_win64 ? 0x7fffffff : 0, 0, 0 );
+    init_thread_stack( teb, 0, 0, 0 );
     NtCreateKeyedEvent( &keyed_event, GENERIC_READ | GENERIC_WRITE, NULL, 0 );
     load_ntdll();
     if (main_image_info.Machine != current_machine) load_wow64_ntdll( main_image_info.Machine );
+    load_apiset_dll();
     ntdll_init_syscalls( 0, &syscall_table, p__wine_syscall_dispatcher );
     status = p__wine_set_unix_funcs( NTDLL_UNIXLIB_VERSION, &unix_funcs );
     if (status == STATUS_REVISION_MISMATCH)

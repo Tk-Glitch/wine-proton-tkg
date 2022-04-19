@@ -7,6 +7,7 @@
 @ stdcall A_SHAInit(ptr)
 @ stdcall A_SHAUpdate(ptr ptr long)
 @ stdcall ApiSetQueryApiSetPresence(ptr ptr)
+@ stdcall ApiSetQueryApiSetPresenceEx(ptr ptr ptr)
 @ stub CsrAllocateCaptureBuffer
 @ stub CsrAllocateCapturePointer
 @ stub CsrAllocateMessagePointer
@@ -1638,7 +1639,6 @@
 @ extern __wine_syscall_dispatcher
 @ extern -arch=i386 __wine_ldt_copy
 @ cdecl __wine_set_unix_env(ptr ptr)
-@ cdecl __wine_unset_unix_env(ptr)
 
 # Debugging
 @ stdcall -syscall -norelay __wine_dbg_write(ptr long)
