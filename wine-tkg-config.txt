@@ -1,4 +1,4 @@
-# Last proton_dist configuration - lun. 25 avril 2022 13:14:43 CEST :
+# Last proton_dist configuration - mer. 11 mai 2022 16:22:01 CEST :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
@@ -19,14 +19,14 @@ CSMT-toggle.patch -- ( Applied CSMT toggle logic patch )
 
 Staging overrides, if any: -W stdole32.tlb-SLTG_Typelib -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW -W winex11-MWM_Decorations -W winex11-key_translation
 
-use_clock_monotonic-staging.patch -- ( Applied clock_monotonic patch )
+use_clock_monotonic.patch -- ( Applied clock_monotonic patch )
 assettocorsa_hud_perf-proton.patch -- ( Applied Assetto Corsa HUD performance fix (proton edition) )
 mk11.patch -- ( Applied Mortal Kombat 11 fix )
 fsync-unix-staging.patch -- ( Applied fsync, an experimental replacement for esync (unix, staging) )
 server_Abort_waiting_on_a_completion_port_when_closing_it.patch -- ( Added Abort waiting on a completion port when closing it Proton patch )
 fsync_futex_waitv.patch -- ( Replace all fsync interfaces with futex_waitv )
 
-valve_proton_fullscreen_hack-staging.patch -- ( Applied Proton fullscreen hack patch (staging) )
+valve_proton_fullscreen_hack-staging-78ecbc4.patch -- ( Applied Proton fullscreen hack patch (78ecbc4) )
 LAA-unix-staging.patch -- ( Applied large address aware override support )
 proton-tkg-steamclient-swap.patch -- ( Applied steamclient substitution hack )
 
