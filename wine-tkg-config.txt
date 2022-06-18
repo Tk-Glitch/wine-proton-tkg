@@ -1,15 +1,17 @@
-# Last proton_dist configuration - sam. 18 juin 2022 20:28:31 CEST :
+# Last proton_dist configuration - sam. 18 juin 2022 20:29:20 CEST :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 7.10.r0.g631f4d5e42b
-Using wine-staging patchset (version 7.10.r0.g94f00cd9)
+Wine (plain) version: 7.11.r0.g1a3217393e2
+Using wine-staging patchset (version 7.11.r0.ga8e56928)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
 
 Done applying reverting hotfixes (if any) - list available in prepare.log
 
+Applied hotfix win32u_reverts27.earlystagingpatch
+Applied hotfix win32u_reverts26.earlystagingpatch
 Applied hotfix win32u_reverts25.earlystagingpatch
 Applied hotfix win32u_reverts24.earlystagingpatch
 Applied hotfix win32u_reverts23.earlystagingpatch
@@ -41,6 +43,7 @@ Applied reverting hotfix win32u_reverts5.mystagingrevert
 Applied hotfix commit-155e98e.mystagingpatch
 Applied hotfix protonify_stg_syscall_emu-009.mystagingpatch
 Applied reverting hotfix d4259ac8e93.myearlyrevert
+Applied hotfix fshack-84bed15-a3ebf88-monolith-reverts.myearlypatch
 steam.patch -- ( Applied steam crossover hack )
 CSMT-toggle.patch -- ( Applied CSMT toggle logic patch )
 
@@ -63,7 +66,7 @@ proton-tabtip.patch -- ( Enable Proton's SteamDeck additions )
 rdr2.patch -- ( Enable Proton's RDR2 fixes from Paul Gofman )
 quake_champions_fix.patch -- ( Enable Proton's Quake Champions fixes from Paul Gofman )
 proton-cpu-topology-overrides.patch -- ( Enable Proton's CPU topology override support )
-proton-vr-fshack-9b220b8.patch -- ( Enable Proton vr-related wined3d additions )
+proton-vr-fshack.patch -- ( Enable Proton vr-related wined3d additions )
 msvcrt_nativebuiltin.patch -- ( Enforce msvcrt Dlls to native then builtin (from Proton) )
 josh-flat-theme.patch -- ( Add Josh's better-theme )
 proton-win10-default-staging.patch -- ( Enforce win10 as default wine version (staging) )
