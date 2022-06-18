@@ -474,8 +474,8 @@
 @ stdcall GetConsoleTitleA(ptr long)
 @ stdcall GetConsoleTitleW(ptr long)
 @ stdcall GetConsoleWindow()
-@ stdcall GetCurrencyFormatEx(wstr long wstr ptr ptr long) kernel32.GetCurrencyFormatEx
-@ stdcall GetCurrencyFormatW(long long wstr ptr ptr long) kernel32.GetCurrencyFormatW
+@ stdcall GetCurrencyFormatEx(wstr long wstr ptr ptr long)
+@ stdcall GetCurrencyFormatW(long long wstr ptr ptr long)
 @ stdcall GetCurrentActCtx(ptr)
 # @ stub GetCurrentApplicationUserModelId
 @ stdcall GetCurrentConsoleFont(long long ptr)
@@ -500,9 +500,9 @@
 @ stdcall -norelay GetCurrentThread() kernelbase_GetCurrentThread
 @ stdcall -norelay GetCurrentThreadId() kernelbase_GetCurrentThreadId
 @ stdcall GetCurrentThreadStackLimits(ptr ptr)
-@ stdcall GetDateFormatA(long long ptr str ptr long) kernel32.GetDateFormatA
-@ stdcall GetDateFormatEx(wstr long ptr wstr ptr long wstr) kernel32.GetDateFormatEx
-@ stdcall GetDateFormatW(long long ptr wstr ptr long) kernel32.GetDateFormatW
+@ stdcall GetDateFormatA(long long ptr str ptr long)
+@ stdcall GetDateFormatEx(wstr long ptr wstr ptr long wstr)
+@ stdcall GetDateFormatW(long long ptr wstr ptr long)
 @ stdcall GetDeviceDriverBaseNameA(ptr ptr long)
 @ stdcall GetDeviceDriverBaseNameW(ptr ptr long)
 @ stdcall GetDeviceDriverFileNameA(ptr ptr long)
@@ -605,8 +605,8 @@
 @ stdcall GetNumaHighestNodeNumber(ptr)
 @ stdcall GetNumaNodeProcessorMaskEx(long ptr)
 @ stdcall GetNumaProximityNodeEx(long ptr)
-@ stdcall GetNumberFormatEx(wstr long wstr ptr ptr long) kernel32.GetNumberFormatEx
-@ stdcall GetNumberFormatW(long long wstr ptr ptr long) kernel32.GetNumberFormatW
+@ stdcall GetNumberFormatEx(wstr long wstr ptr ptr long)
+@ stdcall GetNumberFormatW(long long wstr ptr ptr long)
 @ stdcall GetNumberOfConsoleInputEvents(long ptr)
 @ stdcall GetNumberOfConsoleMouseButtons(ptr)
 @ stdcall GetOEMCP()
@@ -756,9 +756,9 @@
 @ stdcall GetThreadUILanguage()
 @ stdcall GetTickCount()
 @ stdcall -ret64 GetTickCount64()
-@ stdcall GetTimeFormatA(long long ptr str ptr long) kernel32.GetTimeFormatA
-@ stdcall GetTimeFormatEx(wstr long ptr wstr ptr long) kernel32.GetTimeFormatEx
-@ stdcall GetTimeFormatW(long long ptr wstr ptr long) kernel32.GetTimeFormatW
+@ stdcall GetTimeFormatA(long long ptr str ptr long)
+@ stdcall GetTimeFormatEx(wstr long ptr wstr ptr long)
+@ stdcall GetTimeFormatW(long long ptr wstr ptr long)
 @ stdcall GetTimeZoneInformation(ptr)
 @ stdcall GetTimeZoneInformationForYear(long ptr ptr)
 @ stdcall GetTokenInformation(long long ptr long ptr)
@@ -982,6 +982,7 @@
 # @ stub MapPredefinedHandleInternal
 @ stdcall MapUserPhysicalPages(ptr long ptr)
 @ stdcall MapViewOfFile(long long long long long)
+@ stdcall MapViewOfFile3(long long ptr int64 long long long ptr long)
 @ stdcall MapViewOfFileEx(long long long long long ptr)
 @ stdcall MapViewOfFileExNuma(long long long long long ptr long)
 # @ stub MapViewOfFileFromApp
@@ -1520,7 +1521,7 @@
 @ stdcall SetThreadGroupAffinity(long ptr ptr)
 @ stdcall SetThreadIdealProcessor(long long)
 @ stdcall SetThreadIdealProcessorEx(long ptr ptr)
-# @ stub SetThreadInformation
+@ stdcall SetThreadInformation(long long ptr long)
 @ stdcall SetThreadLocale(long)
 @ stdcall SetThreadPreferredUILanguages(long ptr ptr)
 @ stdcall SetThreadPriority(long long)
@@ -1653,7 +1654,8 @@
 @ stdcall UnlockFile(long long long long long)
 @ stdcall UnlockFileEx(long long long long ptr)
 @ stdcall UnmapViewOfFile(ptr)
-# @ stub UnmapViewOfFileEx
+@ stdcall UnmapViewOfFile2(long ptr long)
+@ stdcall UnmapViewOfFileEx(ptr long)
 # @ stub UnregisterBadMemoryNotification
 # @ stub UnregisterGPNotificationInternal
 # @ stub UnregisterStateChangeNotification

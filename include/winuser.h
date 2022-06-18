@@ -19,7 +19,7 @@
 #ifndef _WINUSER_
 #define _WINUSER_
 
-#if !defined(_USER32_)
+#if !defined(_USER32_) && !defined(WINE_UNIX_LIB)
 #define WINUSERAPI DECLSPEC_HIDDEN
 #else
 #define WINUSERAPI
@@ -2874,12 +2874,6 @@ typedef struct {
 #define	DSS_PREFIXONLY	0x0400
 #define	DSS_RIGHT	0x8000
 
-/* UserObjectInformation classes */
-#define UOI_FLAGS 1
-#define UOI_NAME 2
-#define UOI_TYPE 3
-#define UOI_USER_SID 4
-
 
 /* Sent as the lParam of a WM_DRAWITEM message to instruct how an
  * owner drawn control is to be drawn */
@@ -4152,7 +4146,7 @@ WINUSERAPI HDEVNOTIFY  WINAPI RegisterDeviceNotificationW(HANDLE,LPVOID,DWORD);
 WINUSERAPI BOOL        WINAPI RegisterHotKey(HWND,INT,UINT,UINT);
 WINUSERAPI BOOL        WINAPI RegisterPointerDeviceNotifications(HWND,BOOL);
 WINUSERAPI HPOWERNOTIFY WINAPI RegisterPowerSettingNotification(HANDLE,LPCGUID,DWORD);
-WINUSERAPI BOOL        WINAPI RegisterRawInputDevices(PRAWINPUTDEVICE,UINT,UINT);
+WINUSERAPI BOOL        WINAPI RegisterRawInputDevices(const RAWINPUTDEVICE *,UINT,UINT);
 WINUSERAPI BOOL        WINAPI RegisterShellHookWindow(HWND);
 WINUSERAPI HPOWERNOTIFY WINAPI RegisterSuspendResumeNotification(HANDLE,DWORD);
 WINUSERAPI BOOL        WINAPI RegisterTouchWindow(HWND,ULONG);

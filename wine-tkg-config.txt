@@ -1,15 +1,37 @@
-# Last proton_dist configuration - mer. 11 mai 2022 16:22:01 CEST :
+# Last proton_dist configuration - sam. 18 juin 2022 20:27:08 CEST :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 7.6.r0.ga4e4e19fe0f
-Using wine-staging patchset (version 7.6.r0.g539ecd2f)
+Wine (plain) version: 7.9.r0.g230e953e31f
+Using wine-staging patchset (version 7.9.r0.g2a411514)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
 
 Done applying reverting hotfixes (if any) - list available in prepare.log
 
+Applied hotfix win32u_reverts20.earlystagingpatch
+Applied hotfix win32u_reverts19.earlystagingpatch
+Applied hotfix win32u_reverts18.earlystagingpatch
+Applied hotfix win32u_reverts17.earlystagingpatch
+Applied hotfix win32u_reverts16.earlystagingpatch
+Applied hotfix commit-596e7a7.earlystagingpatch
+Applied hotfix commit-ed0734c.earlystagingpatch
+Applied hotfix win32u_reverts15.earlystagingpatch
+Applied hotfix commit-35e4fa1.earlystagingpatch
+Applied hotfix commit-eea217b.earlystagingpatch
+Applied hotfix win32u_reverts14.earlystagingpatch
+Applied hotfix commit-25ac82d.earlystagingpatch
+Applied hotfix win32u_reverts13.earlystagingpatch
+Applied hotfix win32u_reverts12.earlystagingpatch
+Applied hotfix commit-6208102.earlystagingpatch
+Applied hotfix win32u_reverts11.earlystagingpatch
+Applied hotfix win32u_reverts10.earlystagingpatch
+Applied hotfix win32u_reverts9.earlystagingpatch
+Applied hotfix win32u_reverts8.earlystagingpatch
+Applied hotfix win32u_reverts7.earlystagingpatch
+Applied hotfix commit-de2f0fe.earlystagingpatch
+Applied hotfix win32u_reverts6.earlystagingpatch
 Applied reverting hotfix win32u_reverts5.mystagingrevert
 Applied hotfix commit-155e98e.mystagingpatch
 Applied hotfix protonify_stg_syscall_emu-009.mystagingpatch
@@ -17,7 +39,7 @@ Applied reverting hotfix d4259ac8e93.myearlyrevert
 steam.patch -- ( Applied steam crossover hack )
 CSMT-toggle.patch -- ( Applied CSMT toggle logic patch )
 
-Staging overrides, if any: -W stdole32.tlb-SLTG_Typelib -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW -W winex11-MWM_Decorations -W winex11-key_translation
+Staging overrides, if any: -W user32-alttab-focus -W stdole32.tlb-SLTG_Typelib -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W user32-alttab-focus -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW -W winex11-MWM_Decorations -W winex11-key_translation
 
 use_clock_monotonic.patch -- ( Applied clock_monotonic patch )
 assettocorsa_hud_perf-proton.patch -- ( Applied Assetto Corsa HUD performance fix (proton edition) )
@@ -26,17 +48,17 @@ fsync-unix-staging.patch -- ( Applied fsync, an experimental replacement for esy
 server_Abort_waiting_on_a_completion_port_when_closing_it.patch -- ( Added Abort waiting on a completion port when closing it Proton patch )
 fsync_futex_waitv.patch -- ( Replace all fsync interfaces with futex_waitv )
 
-valve_proton_fullscreen_hack-staging-78ecbc4.patch -- ( Applied Proton fullscreen hack patch (78ecbc4) )
+valve_proton_fullscreen_hack-staging.patch -- ( Applied Proton fullscreen hack patch (staging) )
 LAA-unix-staging.patch -- ( Applied large address aware override support )
 proton-tkg-steamclient-swap.patch -- ( Applied steamclient substitution hack )
 
-proton-tkg-staging-22fa68b.patch -- ( Using Steam-specific Proton-tkg patches (staging-22fa68b) 2/2 )
+proton-tkg-staging.patch -- ( Using Steam-specific Proton-tkg patches (staging) 2/3 )
 proton-steam-bits.patch -- ( Using Steam-specific Proton-tkg patches (staging) 3/3 )
 proton-tabtip.patch -- ( Enable Proton's SteamDeck additions )
 rdr2.patch -- ( Enable Proton's RDR2 fixes from Paul Gofman )
 quake_champions_fix.patch -- ( Enable Proton's Quake Champions fixes from Paul Gofman )
 proton-cpu-topology-overrides.patch -- ( Enable Proton's CPU topology override support )
-proton-vr-fshack.patch -- ( Enable Proton vr-related wined3d additions )
+proton-vr-fshack-9b220b8.patch -- ( Enable Proton vr-related wined3d additions )
 msvcrt_nativebuiltin.patch -- ( Enforce msvcrt Dlls to native then builtin (from Proton) )
 josh-flat-theme.patch -- ( Add Josh's better-theme )
 proton-win10-default-staging.patch -- ( Enforce win10 as default wine version (staging) )
@@ -44,14 +66,19 @@ dxvk_config_dxgi_support.patch -- ( Add support for dxvk_config library to Wine'
 proton_battleye.patch -- ( Add support for Proton's Battleye runtime )
 proton-eac_bridge.patch -- ( Add support for Proton's EAC bridge )
 
+Applied reverting hotfix proton-fshack-removeminimizestuff.myrevert
 Applied hotfix remove_hooks_that_time_out-legacy.mypatch
 Applied hotfix user32.implement_rudimentary_EnableMouseInPointer_support.mypatch
+Applied hotfix winex11.drv_Add_a_GPU_for_each_Vulkan_device_that_was_not_tied_to_an_XRandR_provider-legacy.mypatch
+Applied hotfix winex11.drv_Ignore_ClipCursor_if_desktop_window_is_foreground.mypatch
+Applied hotfix sfc_os_Stub_SfpVerifyFile.mypatch
 Applied hotfix stdole32.tlb.mypatch
 Applied hotfix Return_nt_filename_and_resolve_DOS_drive_path.mypatch
 Applied hotfix ef6e33f.mypatch
 Applied hotfix 0001-proton-bcrypt_rdr2_fixes4.mypatch
 Applied hotfix 0002-bcrypt-Add-support-for-calculating-secret-ecc-keys.mypatch
 Applied hotfix a608ef1.mypatch
+Applied hotfix dwmapi_EGS_fixup.mypatch
 Applied your own patch 0001-ntdll-Use-kernel-soft-dirty-flags-for-write-watches-.mypatch
 Applied your own patch FinalFantasyXVHack.mypatch
 Applied your own patch amdags-proton.mypatch

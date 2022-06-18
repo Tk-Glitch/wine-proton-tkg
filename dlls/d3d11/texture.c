@@ -71,7 +71,7 @@ static ULONG STDMETHODCALLTYPE d3d11_texture1d_AddRef(ID3D11Texture1D *iface)
     struct d3d_texture1d *texture = impl_from_ID3D11Texture1D(iface);
     ULONG refcount = InterlockedIncrement(&texture->refcount);
 
-    TRACE("%p increasing refcount to %u.\n", texture, refcount);
+    TRACE("%p increasing refcount to %lu.\n", texture, refcount);
 
     if (refcount == 1)
     {
@@ -87,7 +87,7 @@ static ULONG STDMETHODCALLTYPE d3d11_texture1d_Release(ID3D11Texture1D *iface)
     struct d3d_texture1d *texture = impl_from_ID3D11Texture1D(iface);
     ULONG refcount = InterlockedDecrement(&texture->refcount);
 
-    TRACE("%p decreasing refcount to %u.\n", texture, refcount);
+    TRACE("%p decreasing refcount to %lu.\n", texture, refcount);
 
     if (!refcount)
     {
@@ -463,7 +463,7 @@ HRESULT d3d_texture1d_create(struct d3d_device *device, const D3D11_TEXTURE1D_DE
             desc->ArraySize, levels, flags, (struct wined3d_sub_resource_data *)data,
             texture, &d3d_texture1d_wined3d_parent_ops, &texture->wined3d_texture)))
     {
-        WARN("Failed to create wined3d texture, hr %#x.\n", hr);
+        WARN("Failed to create wined3d texture, hr %#lx.\n", hr);
         wined3d_private_store_cleanup(&texture->private_store);
         heap_free(texture);
         wined3d_mutex_unlock();
@@ -490,7 +490,7 @@ HRESULT d3d_texture1d_create(struct d3d_device *device, const D3D11_TEXTURE1D_DE
         IWineDXGIDevice_Release(wine_device);
         if (FAILED(hr))
         {
-            ERR("Failed to create DXGI surface, returning %#.x\n", hr);
+            ERR("Failed to create DXGI surface, returning %#.lx\n", hr);
             texture->dxgi_surface = NULL;
             wined3d_texture_decref(texture->wined3d_texture);
             wined3d_mutex_unlock();
@@ -557,7 +557,7 @@ static ULONG STDMETHODCALLTYPE d3d11_texture2d_AddRef(IWineD3D11Texture2D *iface
     struct d3d_texture2d *texture = impl_from_IWineD3D11Texture2D(iface);
     ULONG refcount = InterlockedIncrement(&texture->refcount);
 
-    TRACE("%p increasing refcount to %u.\n", texture, refcount);
+    TRACE("%p increasing refcount to %lu.\n", texture, refcount);
 
     if (refcount == 1)
     {
@@ -573,7 +573,7 @@ static ULONG STDMETHODCALLTYPE d3d11_texture2d_Release(IWineD3D11Texture2D *ifac
     struct d3d_texture2d *texture = impl_from_IWineD3D11Texture2D(iface);
     ULONG refcount = InterlockedDecrement(&texture->refcount);
 
-    TRACE("%p decreasing refcount to %u.\n", texture, refcount);
+    TRACE("%p decreasing refcount to %lu.\n", texture, refcount);
 
     if (!refcount)
     {
@@ -1052,7 +1052,7 @@ HRESULT d3d_texture2d_create(struct d3d_device *device, const D3D11_TEXTURE2D_DE
             desc->ArraySize, levels, flags, (struct wined3d_sub_resource_data *)data,
             texture, &d3d_texture2d_wined3d_parent_ops, &texture->wined3d_texture)))
     {
-        WARN("Failed to create wined3d texture, hr %#x.\n", hr);
+        WARN("Failed to create wined3d texture, hr %#lx.\n", hr);
         wined3d_private_store_cleanup(&texture->private_store);
         heap_free(texture);
         wined3d_mutex_unlock();
@@ -1080,7 +1080,7 @@ HRESULT d3d_texture2d_create(struct d3d_device *device, const D3D11_TEXTURE2D_DE
         IWineDXGIDevice_Release(wine_device);
         if (FAILED(hr))
         {
-            ERR("Failed to create DXGI surface, returning %#.x\n", hr);
+            ERR("Failed to create DXGI surface, returning %#.lx\n", hr);
             texture->dxgi_surface = NULL;
             wined3d_texture_decref(texture->wined3d_texture);
             wined3d_mutex_unlock();
@@ -1139,7 +1139,7 @@ static ULONG STDMETHODCALLTYPE d3d11_texture3d_AddRef(ID3D11Texture3D *iface)
     struct d3d_texture3d *texture = impl_from_ID3D11Texture3D(iface);
     ULONG refcount = InterlockedIncrement(&texture->refcount);
 
-    TRACE("%p increasing refcount to %u.\n", texture, refcount);
+    TRACE("%p increasing refcount to %lu.\n", texture, refcount);
 
     if (refcount == 1)
     {
@@ -1163,7 +1163,7 @@ static ULONG STDMETHODCALLTYPE d3d11_texture3d_Release(ID3D11Texture3D *iface)
     struct d3d_texture3d *texture = impl_from_ID3D11Texture3D(iface);
     ULONG refcount = InterlockedDecrement(&texture->refcount);
 
-    TRACE("%p decreasing refcount to %u.\n", texture, refcount);
+    TRACE("%p decreasing refcount to %lu.\n", texture, refcount);
 
     if (!refcount)
     {
@@ -1501,7 +1501,7 @@ static HRESULT d3d_texture3d_init(struct d3d_texture3d *texture, struct d3d_devi
             1, levels, flags, (struct wined3d_sub_resource_data *)data, texture,
             &d3d_texture3d_wined3d_parent_ops, &texture->wined3d_texture)))
     {
-        WARN("Failed to create wined3d texture, hr %#x.\n", hr);
+        WARN("Failed to create wined3d texture, hr %#lx.\n", hr);
         wined3d_private_store_cleanup(&texture->private_store);
         wined3d_mutex_unlock();
         if (hr == WINED3DERR_INVALIDCALL)
@@ -1527,7 +1527,7 @@ HRESULT d3d_texture3d_create(struct d3d_device *device, const D3D11_TEXTURE3D_DE
 
     if (FAILED(hr = d3d_texture3d_init(object, device, desc, data)))
     {
-        WARN("Failed to initialize texture, hr %#x.\n", hr);
+        WARN("Failed to initialise texture, hr %#lx.\n", hr);
         heap_free(object);
         return hr;
     }

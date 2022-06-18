@@ -151,13 +151,17 @@ DEFINE_EXPECT(GetTypeInfo);
 #define DISPID_EXTERNAL_BROKEN         0x300004
 #define DISPID_EXTERNAL_WIN_SKIP       0x300005
 #define DISPID_EXTERNAL_WRITESTREAM    0x300006
+#define DISPID_EXTERNAL_GETVT          0x300007
+#define DISPID_EXTERNAL_NULL_DISP      0x300008
+#define DISPID_EXTERNAL_IS_ENGLISH     0x300009
+#define DISPID_EXTERNAL_LIST_SEP       0x30000A
 
 static const GUID CLSID_TestScript =
     {0x178fc163,0xf585,0x4e24,{0x9c,0x13,0x4b,0xb7,0xfa,0xf8,0x07,0x46}};
 static const GUID CLSID_TestActiveX =
     {0x178fc163,0xf585,0x4e24,{0x9c,0x13,0x4b,0xb7,0xfa,0xf8,0x06,0x46}};
 
-static BOOL is_ie9plus;
+static BOOL is_ie9plus, is_english;
 static IHTMLDocument2 *notif_doc;
 static IOleDocumentView *view;
 static IDispatchEx *window_dispex;
@@ -589,6 +593,22 @@ static HRESULT WINAPI externalDisp_GetDispID(IDispatchEx *iface, BSTR bstrName, 
         *pid = DISPID_EXTERNAL_WRITESTREAM;
         return S_OK;
     }
+    if(!lstrcmpW(bstrName, L"getVT")) {
+        *pid = DISPID_EXTERNAL_GETVT;
+        return S_OK;
+    }
+    if(!lstrcmpW(bstrName, L"nullDisp")) {
+        *pid = DISPID_EXTERNAL_NULL_DISP;
+        return S_OK;
+    }
+    if(!lstrcmpW(bstrName, L"isEnglish")) {
+        *pid = DISPID_EXTERNAL_IS_ENGLISH;
+        return S_OK;
+    }
+    if(!lstrcmpW(bstrName, L"listSeparator")) {
+        *pid = DISPID_EXTERNAL_LIST_SEP;
+        return S_OK;
+    }
 
     ok(0, "unexpected name %s\n", wine_dbgstr_w(bstrName));
     return DISP_E_UNKNOWNNAME;
@@ -715,6 +735,103 @@ static HRESULT WINAPI externalDisp_InvokeEx(IDispatchEx *iface, DISPID id, LCID 
 
         stream_write(V_BSTR(pdp->rgvarg+1), V_BSTR(pdp->rgvarg));
         return S_OK;
+
+    case DISPID_EXTERNAL_GETVT:
+        ok(pdp != NULL, "pdp == NULL\n");
+        ok(pdp->rgvarg != NULL, "rgvarg == NULL\n");
+        ok(!pdp->rgdispidNamedArgs, "rgdispidNamedArgs != NULL\n");
+        ok(pdp->cArgs == 1, "cArgs = %d\n", pdp->cArgs);
+        ok(!pdp->cNamedArgs, "cNamedArgs = %d\n", pdp->cNamedArgs);
+        ok(pvarRes != NULL, "pvarRes == NULL\n");
+        ok(V_VT(pvarRes) == VT_EMPTY, "V_VT(pvarRes) = %d\n", V_VT(pvarRes));
+        ok(pei != NULL, "pei == NULL\n");
+
+        V_VT(pvarRes) = VT_BSTR;
+        switch(V_VT(pdp->rgvarg)) {
+        case VT_EMPTY:
+            V_BSTR(pvarRes) = SysAllocString(L"VT_EMPTY");
+            break;
+        case VT_NULL:
+            V_BSTR(pvarRes) = SysAllocString(L"VT_NULL");
+            break;
+        case VT_I4:
+            V_BSTR(pvarRes) = SysAllocString(L"VT_I4");
+            break;
+        case VT_R8:
+            V_BSTR(pvarRes) = SysAllocString(L"VT_R8");
+            break;
+        case VT_BSTR:
+            V_BSTR(pvarRes) = SysAllocString(L"VT_BSTR");
+            break;
+        case VT_DISPATCH:
+            V_BSTR(pvarRes) = SysAllocString(L"VT_DISPATCH");
+            break;
+        case VT_BOOL:
+            V_BSTR(pvarRes) = SysAllocString(L"VT_BOOL");
+            break;
+        case VT_DATE:
+            V_BSTR(pvarRes) = SysAllocString(L"VT_DATE");
+            break;
+        default:
+            ok(0, "unknown vt %d\n", V_VT(pdp->rgvarg));
+            return E_FAIL;
+        }
+
+        return S_OK;
+
+    case DISPID_EXTERNAL_NULL_DISP:
+        ok(wFlags == INVOKE_PROPERTYGET, "wFlags = %x\n", wFlags);
+        ok(pdp != NULL, "pdp == NULL\n");
+        ok(!pdp->rgvarg, "rgvarg != NULL\n");
+        ok(!pdp->rgdispidNamedArgs, "rgdispidNamedArgs != NULL\n");
+        ok(!pdp->cArgs, "cArgs = %d\n", pdp->cArgs);
+        ok(!pdp->cNamedArgs, "cNamedArgs = %d\n", pdp->cNamedArgs);
+        ok(pvarRes != NULL, "pvarRes == NULL\n");
+        ok(V_VT(pvarRes) == VT_EMPTY, "V_VT(pvarRes) = %d\n", V_VT(pvarRes));
+        ok(pei != NULL, "pei == NULL\n");
+
+        V_VT(pvarRes) = VT_DISPATCH;
+        V_DISPATCH(pvarRes) = NULL;
+        return S_OK;
+
+    case DISPID_EXTERNAL_IS_ENGLISH:
+        ok(wFlags == INVOKE_PROPERTYGET, "wFlags = %x\n", wFlags);
+        ok(pdp != NULL, "pdp == NULL\n");
+        ok(!pdp->rgvarg, "rgvarg != NULL\n");
+        ok(!pdp->rgdispidNamedArgs, "rgdispidNamedArgs != NULL\n");
+        ok(!pdp->cArgs, "cArgs = %d\n", pdp->cArgs);
+        ok(!pdp->cNamedArgs, "cNamedArgs = %d\n", pdp->cNamedArgs);
+        ok(pvarRes != NULL, "pvarRes == NULL\n");
+        ok(V_VT(pvarRes) == VT_EMPTY, "V_VT(pvarRes) = %d\n", V_VT(pvarRes));
+        ok(pei != NULL, "pei == NULL\n");
+
+        V_VT(pvarRes) = VT_BOOL;
+        V_BOOL(pvarRes) = is_english ? VARIANT_TRUE : VARIANT_FALSE;
+        return S_OK;
+
+    case DISPID_EXTERNAL_LIST_SEP: {
+        WCHAR buf[4];
+        int len;
+
+        ok(wFlags == INVOKE_PROPERTYGET, "wFlags = %x\n", wFlags);
+        ok(pdp != NULL, "pdp == NULL\n");
+        ok(!pdp->rgvarg, "rgvarg != NULL\n");
+        ok(!pdp->rgdispidNamedArgs, "rgdispidNamedArgs != NULL\n");
+        ok(!pdp->cArgs, "cArgs = %d\n", pdp->cArgs);
+        ok(!pdp->cNamedArgs, "cNamedArgs = %d\n", pdp->cNamedArgs);
+        ok(pvarRes != NULL, "pvarRes == NULL\n");
+        ok(V_VT(pvarRes) == VT_EMPTY, "V_VT(pvarRes) = %d\n", V_VT(pvarRes));
+        ok(pei != NULL, "pei == NULL\n");
+
+        if(!(len = GetLocaleInfoW(GetUserDefaultLCID(), LOCALE_SLIST, buf, ARRAY_SIZE(buf))))
+            buf[len++] = ',';
+        else
+            len--;
+
+        V_VT(pvarRes) = VT_BSTR;
+        V_BSTR(pvarRes) = SysAllocStringLen(buf, len);
+        return S_OK;
+    }
 
     default:
         ok(0, "unexpected call\n");
@@ -3675,6 +3792,19 @@ static HWND create_container_window(void)
             300, 300, NULL, NULL, NULL, NULL);
 }
 
+static void detect_locale(void)
+{
+    HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
+    LANGID (WINAPI *pGetThreadUILanguage)(void) = (void*)GetProcAddress(kernel32, "GetThreadUILanguage");
+
+    is_english = ((!pGetThreadUILanguage || PRIMARYLANGID(pGetThreadUILanguage()) == LANG_ENGLISH) &&
+                  PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_ENGLISH &&
+                  PRIMARYLANGID(GetUserDefaultLangID()) == LANG_ENGLISH);
+
+    if(!is_english)
+        skip("Skipping some tests in non-English locale\n");
+}
+
 static BOOL check_ie(void)
 {
     IHTMLDocument2 *doc;
@@ -3711,6 +3841,7 @@ START_TEST(script)
     CoInitialize(NULL);
     container_hwnd = create_container_window();
 
+    detect_locale();
     if(argc > 2) {
         init_protocol_handler();
         run_script_as_http_with_mode(argv[2], NULL, "11");

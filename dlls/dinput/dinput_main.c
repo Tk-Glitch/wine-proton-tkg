@@ -545,6 +545,13 @@ static HRESULT WINAPI dinput7_CreateDeviceEx( IDirectInput7W *iface, const GUID 
     else hr = hid_joystick_create_device( impl, guid, &device );
 
     if (FAILED(hr)) return hr;
+
+    if (FAILED(hr = dinput_device_init_device_format( device )))
+    {
+        IDirectInputDevice8_Release( device );
+        return hr;
+    }
+
     hr = IDirectInputDevice8_QueryInterface( device, iid, out );
     IDirectInputDevice8_Release( device );
     return hr;
@@ -1444,7 +1451,6 @@ BOOL WINAPI DllMain( HINSTANCE inst, DWORD reason, void *reserved )
         if (reserved) break;
         dinput_thread_stop();
         unregister_di_em_win_class();
-        DeleteCriticalSection(&dinput_hook_crit);
         CloseHandle(steam_overlay_event);
         CloseHandle(steam_keyboard_event);
         break;

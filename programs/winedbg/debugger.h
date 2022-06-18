@@ -265,6 +265,7 @@ struct dbg_process
     char                        source_current_file[MAX_PATH];
     int                         source_start_line;
     int                         source_end_line;
+    const struct data_model*    data_model;
 };
 
 /* describes the way the debugger interacts with a given process */
@@ -405,7 +406,7 @@ extern BOOL             memory_get_current_pc(ADDRESS64* address);
 extern BOOL             memory_get_current_stack(ADDRESS64* address);
 extern BOOL             memory_get_string(struct dbg_process* pcs, void* addr, BOOL in_debuggee, BOOL unicode, char* buffer, int size);
 extern BOOL             memory_get_string_indirect(struct dbg_process* pcs, void* addr, BOOL unicode, WCHAR* buffer, int size);
-extern BOOL             memory_get_register(DWORD regno, DWORD_PTR** value, char* buffer, int len);
+extern BOOL             memory_get_register(DWORD regno, struct dbg_lvalue* value, char* buffer, int len);
 extern void             memory_disassemble(const struct dbg_lvalue*, const struct dbg_lvalue*, int instruction_count);
 extern BOOL             memory_disasm_one_insn(ADDRESS64* addr);
 #define MAX_OFFSET_TO_STR_LEN 19
@@ -426,7 +427,7 @@ extern void             source_free_files(struct dbg_process* p);
 extern void             stack_info(int len);
 extern void             stack_backtrace(DWORD threadID);
 extern BOOL             stack_set_frame(int newframe);
-extern BOOL             stack_get_register_frame(const struct dbg_internal_var* div, DWORD_PTR** pval);
+extern BOOL             stack_get_register_frame(const struct dbg_internal_var* div, struct dbg_lvalue* lvalue);
 extern unsigned         stack_fetch_frames(const dbg_ctx_t *ctx);
 extern BOOL             stack_get_current_symbol(SYMBOL_INFO* sym);
 static inline struct dbg_frame*
@@ -544,6 +545,16 @@ static inline void* dbg_heap_realloc(void* buffer, size_t size)
     return (buffer) ? HeapReAlloc(GetProcessHeap(), 0, buffer, size) :
         HeapAlloc(GetProcessHeap(), 0, size);
 }
+
+struct data_model
+{
+    unsigned            base_type;
+    unsigned            size;
+    const WCHAR*        name;
+};
+extern const struct data_model ilp32_data_model[];
+extern const struct data_model lp64_data_model[];
+extern const struct data_model llp64_data_model[];
 
 extern struct dbg_internal_var          dbg_internal_vars[];
 

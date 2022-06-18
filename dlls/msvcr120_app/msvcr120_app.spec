@@ -57,9 +57,9 @@
 @ stub -arch=arm ??0_SpinLock@details@Concurrency@@QAA@ACJ@Z
 @ stub -arch=i386 ??0_SpinLock@details@Concurrency@@QAE@ACJ@Z
 @ stub -arch=win64 ??0_SpinLock@details@Concurrency@@QEAA@AECJ@Z
-@ stub -arch=arm ??0_StructuredTaskCollection@details@Concurrency@@QAA@PAV_CancellationTokenState@12@@Z
-@ stub -arch=i386 ??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z
-@ stub -arch=win64 ??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z
+@ cdecl -arch=arm ??0_StructuredTaskCollection@details@Concurrency@@QAA@PAV_CancellationTokenState@12@@Z(ptr ptr) msvcr120.??0_StructuredTaskCollection@details@Concurrency@@QAA@PAV_CancellationTokenState@12@@Z
+@ thiscall -arch=i386 ??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z(ptr ptr) msvcr120.??0_StructuredTaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z
+@ cdecl -arch=win64 ??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z(ptr ptr) msvcr120.??0_StructuredTaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z
 @ stub -arch=arm ??0_TaskCollection@details@Concurrency@@QAA@PAV_CancellationTokenState@12@@Z
 @ stub -arch=i386 ??0_TaskCollection@details@Concurrency@@QAE@PAV_CancellationTokenState@12@@Z
 @ stub -arch=win64 ??0_TaskCollection@details@Concurrency@@QEAA@PEAV_CancellationTokenState@12@@Z
@@ -850,7 +850,7 @@
 @ cdecl __AdjustPointer(ptr ptr) msvcr120.__AdjustPointer
 @ stub __BuildCatchObject
 @ stub __BuildCatchObjectHelper
-@ stdcall -arch=x86_64 __C_specific_handler(ptr long ptr ptr) msvcr120.__C_specific_handler
+@ stdcall -arch=x86_64,arm __C_specific_handler(ptr long ptr ptr) msvcr120.__C_specific_handler
 @ cdecl -arch=i386,x86_64,arm,arm64 __CppXcptFilter(long ptr) msvcr120.__CppXcptFilter
 @ cdecl -arch=i386,x86_64,arm,arm64 __CxxDetectRethrow(ptr) msvcr120.__CxxDetectRethrow
 @ cdecl -arch=i386,x86_64,arm,arm64 __CxxExceptionFilter(ptr ptr long ptr) msvcr120.__CxxExceptionFilter
@@ -914,7 +914,7 @@
 @ cdecl __iscsymf(long) msvcr120.__iscsymf
 @ stub __iswcsym
 @ stub __iswcsymf
-@ stub -arch=arm __jump_unwind
+@ stdcall -arch=arm __jump_unwind(ptr ptr) msvcr120.__jump_unwind
 # extern __lconv
 @ cdecl __lconv_init() msvcr120.__lconv_init
 @ cdecl -arch=i386 -norelay __libm_sse2_acos() msvcr120.__libm_sse2_acos

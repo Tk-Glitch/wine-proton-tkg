@@ -55,8 +55,70 @@
 #include <netinet/ip_var.h>
 #endif
 
+#ifdef HAVE_NETINET6_IP6_VAR_H
+#include <netinet6/ip6_var.h>
+#endif
+
+#ifdef __APPLE__
+/* For reasons unknown, Mac OS doesn't export <netinet6/ip6_var.h> to user-
+ * space. We'll have to define the needed struct ourselves.
+ */
+struct ip6stat {
+    u_quad_t ip6s_total;
+    u_quad_t ip6s_tooshort;
+    u_quad_t ip6s_toosmall;
+    u_quad_t ip6s_fragments;
+    u_quad_t ip6s_fragdropped;
+    u_quad_t ip6s_fragtimeout;
+    u_quad_t ip6s_fragoverflow;
+    u_quad_t ip6s_forward;
+    u_quad_t ip6s_cantforward;
+    u_quad_t ip6s_redirectsent;
+    u_quad_t ip6s_delivered;
+    u_quad_t ip6s_localout;
+    u_quad_t ip6s_odropped;
+    u_quad_t ip6s_reassembled;
+    u_quad_t ip6s_atmfrag_rcvd;
+    u_quad_t ip6s_fragmented;
+    u_quad_t ip6s_ofragments;
+    u_quad_t ip6s_cantfrag;
+    u_quad_t ip6s_badoptions;
+    u_quad_t ip6s_noroute;
+    u_quad_t ip6s_badvers;
+    u_quad_t ip6s_rawout;
+    u_quad_t ip6s_badscope;
+    u_quad_t ip6s_notmember;
+    u_quad_t ip6s_nxthist[256];
+    u_quad_t ip6s_m1;
+    u_quad_t ip6s_m2m[32];
+    u_quad_t ip6s_mext1;
+    u_quad_t ip6s_mext2m;
+    u_quad_t ip6s_exthdrtoolong;
+    u_quad_t ip6s_nogif;
+    u_quad_t ip6s_toomanyhdr;
+};
+#endif
+
 #ifdef HAVE_NETINET_ICMP_VAR_H
 #include <netinet/icmp_var.h>
+#endif
+
+#ifdef HAVE_NETINET_ICMP6_H
+#include <netinet/icmp6.h>
+#undef ICMP6_DST_UNREACH
+#undef ICMP6_PACKET_TOO_BIG
+#undef ICMP6_TIME_EXCEEDED
+#undef ICMP6_PARAM_PROB
+#undef ICMP6_ECHO_REQUEST
+#undef ICMP6_ECHO_REPLY
+#undef ICMP6_MEMBERSHIP_QUERY
+#undef ICMP6_MEMBERSHIP_REPORT
+#undef ICMP6_MEMBERSHIP_REDUCTION
+#undef ND_ROUTER_SOLICIT
+#undef ND_ROUTER_ADVERT
+#undef ND_NEIGHBOR_SOLICIT
+#undef ND_NEIGHBOR_ADVERT
+#undef ND_REDIRECT
 #endif
 
 #ifdef HAVE_NETINET_IF_ETHER_H
@@ -99,7 +161,7 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(nsi);
 
-static inline DWORD nsi_popcount( DWORD m )
+static inline UINT nsi_popcount( UINT m )
 {
 #ifdef HAVE___BUILTIN_POPCOUNT
     return __builtin_popcount( m );
@@ -110,19 +172,19 @@ static inline DWORD nsi_popcount( DWORD m )
 #endif
 }
 
-static DWORD mask_v4_to_prefix( struct in_addr *addr )
+static UINT mask_v4_to_prefix( struct in_addr *addr )
 {
     return nsi_popcount( addr->s_addr );
 }
 
-static DWORD mask_v6_to_prefix( struct in6_addr *addr )
+static UINT mask_v6_to_prefix( struct in6_addr *addr )
 {
-    DWORD ret;
+    UINT ret;
 
-    ret = nsi_popcount( *(DWORD *)addr->s6_addr );
-    ret += nsi_popcount( *(DWORD *)(addr->s6_addr + 4) );
-    ret += nsi_popcount( *(DWORD *)(addr->s6_addr + 8) );
-    ret += nsi_popcount( *(DWORD *)(addr->s6_addr + 12) );
+    ret = nsi_popcount( *(UINT *)addr->s6_addr );
+    ret += nsi_popcount( *(UINT *)(addr->s6_addr + 4) );
+    ret += nsi_popcount( *(UINT *)(addr->s6_addr + 8) );
+    ret += nsi_popcount( *(UINT *)(addr->s6_addr + 12) );
     return ret;
 }
 
@@ -151,15 +213,15 @@ static NTSTATUS read_sysctl_int( const char *file, int *val )
 }
 #endif
 
-static NTSTATUS ip_cmpt_get_all_parameters( DWORD fam, const DWORD *key, DWORD key_size,
-                                            struct nsi_ip_cmpt_rw *rw_data, DWORD rw_size,
-                                            struct nsi_ip_cmpt_dynamic *dynamic_data, DWORD dynamic_size,
-                                            void *static_data, DWORD static_size )
+static NTSTATUS ip_cmpt_get_all_parameters( UINT fam, const UINT *key, UINT key_size,
+                                            struct nsi_ip_cmpt_rw *rw_data, UINT rw_size,
+                                            struct nsi_ip_cmpt_dynamic *dynamic_data, UINT dynamic_size,
+                                            void *static_data, UINT static_size )
 {
     const NPI_MODULEID *ip_mod = (fam == AF_INET) ? &NPI_MS_IPV4_MODULEID : &NPI_MS_IPV6_MODULEID;
     struct nsi_ip_cmpt_rw rw;
     struct nsi_ip_cmpt_dynamic dyn;
-    DWORD count;
+    UINT count;
 
     memset( &rw, 0, sizeof(rw) );
     memset( &dyn, 0, sizeof(dyn) );
@@ -219,8 +281,8 @@ static NTSTATUS ip_cmpt_get_all_parameters( DWORD fam, const DWORD *key, DWORD k
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS ipv4_cmpt_get_all_parameters( const void *key, DWORD key_size, void *rw_data, DWORD rw_size,
-                                              void *dynamic_data, DWORD dynamic_size, void *static_data, DWORD static_size )
+static NTSTATUS ipv4_cmpt_get_all_parameters( const void *key, UINT key_size, void *rw_data, UINT rw_size,
+                                              void *dynamic_data, UINT dynamic_size, void *static_data, UINT static_size )
 {
     TRACE( "%p %d %p %d %p %d %p %d\n", key, key_size, rw_data, rw_size, dynamic_data, dynamic_size,
            static_data, static_size );
@@ -228,8 +290,8 @@ static NTSTATUS ipv4_cmpt_get_all_parameters( const void *key, DWORD key_size, v
                                        dynamic_data, dynamic_size, static_data, static_size );
 }
 
-static NTSTATUS ipv6_cmpt_get_all_parameters( const void *key, DWORD key_size, void *rw_data, DWORD rw_size,
-                                              void *dynamic_data, DWORD dynamic_size, void *static_data, DWORD static_size )
+static NTSTATUS ipv6_cmpt_get_all_parameters( const void *key, UINT key_size, void *rw_data, UINT rw_size,
+                                              void *dynamic_data, UINT dynamic_size, void *static_data, UINT static_size )
 {
     TRACE( "%p %d %p %d %p %d %p %d\n", key, key_size, rw_data, rw_size, dynamic_data, dynamic_size,
            static_data, static_size );
@@ -237,8 +299,8 @@ static NTSTATUS ipv6_cmpt_get_all_parameters( const void *key, DWORD key_size, v
                                        dynamic_data, dynamic_size, static_data, static_size );
 }
 
-static NTSTATUS ipv4_icmpstats_get_all_parameters( const void *key, DWORD key_size, void *rw_data, DWORD rw_size,
-                                                   void *dynamic_data, DWORD dynamic_size, void *static_data, DWORD static_size )
+static NTSTATUS ipv4_icmpstats_get_all_parameters( const void *key, UINT key_size, void *rw_data, UINT rw_size,
+                                                   void *dynamic_data, UINT dynamic_size, void *static_data, UINT static_size )
 {
     struct nsi_ip_icmpstats_dynamic dyn;
 
@@ -299,7 +361,7 @@ static NTSTATUS ipv4_icmpstats_get_all_parameters( const void *key, DWORD key_si
         fclose( fp );
         return status;
     }
-#elif defined(HAVE_SYS_SYSCTL_H) && defined(ICMPCTL_STATS)
+#elif defined(HAVE_SYS_SYSCTL_H) && defined(ICMPCTL_STATS) && defined(HAVE_STRUCT_ICMPSTAT_ICPS_ERROR)
     {
         int mib[] = { CTL_NET, PF_INET, IPPROTO_ICMP, ICMPCTL_STATS };
         struct icmpstat icmp_stat;
@@ -352,8 +414,8 @@ static NTSTATUS ipv4_icmpstats_get_all_parameters( const void *key, DWORD key_si
 #endif
 }
 
-static NTSTATUS ipv6_icmpstats_get_all_parameters( const void *key, DWORD key_size, void *rw_data, DWORD rw_size,
-                                                   void *dynamic_data, DWORD dynamic_size, void *static_data, DWORD static_size )
+static NTSTATUS ipv6_icmpstats_get_all_parameters( const void *key, UINT key_size, void *rw_data, UINT rw_size,
+                                                   void *dynamic_data, UINT dynamic_size, void *static_data, UINT static_size )
 {
     struct nsi_ip_icmpstats_dynamic dyn;
 
@@ -367,7 +429,7 @@ static NTSTATUS ipv6_icmpstats_get_all_parameters( const void *key, DWORD key_si
         struct data
         {
             const char *name;
-            DWORD pos;
+            UINT pos;
         };
         static const struct data in_list[] =
         {
@@ -406,7 +468,7 @@ static NTSTATUS ipv6_icmpstats_get_all_parameters( const void *key, DWORD key_si
             { "Icmp6OutMLDv2Reports",           ICMP6_V2_MEMBERSHIP_REPORT },
         };
         char buf[512], *ptr, *value;
-        DWORD res, i;
+        UINT res, i;
         FILE *fp;
 
         if (!(fp = fopen( "/proc/net/snmp6", "r" ))) return STATUS_NOT_SUPPORTED;
@@ -472,14 +534,71 @@ static NTSTATUS ipv6_icmpstats_get_all_parameters( const void *key, DWORD key_si
         if (dynamic_data) *(struct nsi_ip_icmpstats_dynamic *)dynamic_data = dyn;
         return STATUS_SUCCESS;
     }
+#elif defined(HAVE_SYS_SYSCTL_H) && defined(ICMPV6CTL_STATS) && defined(HAVE_STRUCT_ICMP6STAT_ICP6S_ERROR)
+    {
+        int mib[] = { CTL_NET, PF_INET6, IPPROTO_ICMPV6, ICMPV6CTL_STATS };
+        struct icmp6stat icmp_stat;
+        size_t needed = sizeof(icmp_stat);
+        int i;
+
+        if (sysctl( mib, ARRAY_SIZE(mib), &icmp_stat, &needed, NULL, 0 ) == -1) return STATUS_NOT_SUPPORTED;
+
+        dyn.in_msgs = icmp_stat.icp6s_badcode + icmp_stat.icp6s_checksum + icmp_stat.icp6s_tooshort +
+            icmp_stat.icp6s_badlen + icmp_stat.icp6s_nd_toomanyopt;
+        for (i = 0; i <= ICMP6_MAXTYPE; i++)
+            dyn.in_msgs += icmp_stat.icp6s_inhist[i];
+
+        dyn.in_errors = icmp_stat.icp6s_badcode + icmp_stat.icp6s_checksum + icmp_stat.icp6s_tooshort +
+            icmp_stat.icp6s_badlen + icmp_stat.icp6s_nd_toomanyopt;
+
+        dyn.in_type_counts[ICMP6_DST_UNREACH] = icmp_stat.icp6s_inhist[ICMP6_DST_UNREACH];
+        dyn.in_type_counts[ICMP6_PACKET_TOO_BIG] = icmp_stat.icp6s_inhist[ICMP6_PACKET_TOO_BIG];
+        dyn.in_type_counts[ICMP6_TIME_EXCEEDED] = icmp_stat.icp6s_inhist[ICMP6_TIME_EXCEEDED];
+        dyn.in_type_counts[ICMP6_PARAM_PROB] = icmp_stat.icp6s_inhist[ICMP6_PARAM_PROB];
+        dyn.in_type_counts[ICMP6_ECHO_REQUEST] = icmp_stat.icp6s_inhist[ICMP6_ECHO_REQUEST];
+        dyn.in_type_counts[ICMP6_ECHO_REPLY] = icmp_stat.icp6s_inhist[ICMP6_ECHO_REPLY];
+        dyn.in_type_counts[ICMP6_MEMBERSHIP_QUERY] = icmp_stat.icp6s_inhist[ICMP6_MEMBERSHIP_QUERY];
+        dyn.in_type_counts[ICMP6_MEMBERSHIP_REPORT] = icmp_stat.icp6s_inhist[ICMP6_MEMBERSHIP_REPORT];
+        dyn.in_type_counts[ICMP6_MEMBERSHIP_REDUCTION] = icmp_stat.icp6s_inhist[ICMP6_MEMBERSHIP_REDUCTION];
+        dyn.in_type_counts[ND_ROUTER_SOLICIT] = icmp_stat.icp6s_inhist[ND_ROUTER_SOLICIT];
+        dyn.in_type_counts[ND_ROUTER_ADVERT] = icmp_stat.icp6s_inhist[ND_ROUTER_ADVERT];
+        dyn.in_type_counts[ND_NEIGHBOR_SOLICIT] = icmp_stat.icp6s_inhist[ND_NEIGHBOR_SOLICIT];
+        dyn.in_type_counts[ND_NEIGHBOR_ADVERT] = icmp_stat.icp6s_inhist[ND_NEIGHBOR_ADVERT];
+        dyn.in_type_counts[ND_REDIRECT] = icmp_stat.icp6s_inhist[ND_REDIRECT];
+        dyn.in_type_counts[ICMP6_V2_MEMBERSHIP_REPORT] = icmp_stat.icp6s_inhist[MLDV2_LISTENER_REPORT];
+
+        dyn.out_msgs = icmp_stat.icp6s_canterror + icmp_stat.icp6s_toofreq;
+        for (i = 0; i <= ICMP6_MAXTYPE; i++)
+            dyn.out_msgs += icmp_stat.icp6s_outhist[i];
+
+        dyn.out_errors = icmp_stat.icp6s_canterror + icmp_stat.icp6s_toofreq;
+
+        dyn.out_type_counts[ICMP6_DST_UNREACH] = icmp_stat.icp6s_outhist[ICMP6_DST_UNREACH];
+        dyn.out_type_counts[ICMP6_PACKET_TOO_BIG] = icmp_stat.icp6s_outhist[ICMP6_PACKET_TOO_BIG];
+        dyn.out_type_counts[ICMP6_TIME_EXCEEDED] = icmp_stat.icp6s_outhist[ICMP6_TIME_EXCEEDED];
+        dyn.out_type_counts[ICMP6_PARAM_PROB] = icmp_stat.icp6s_outhist[ICMP6_PARAM_PROB];
+        dyn.out_type_counts[ICMP6_ECHO_REQUEST] = icmp_stat.icp6s_outhist[ICMP6_ECHO_REQUEST];
+        dyn.out_type_counts[ICMP6_ECHO_REPLY] = icmp_stat.icp6s_outhist[ICMP6_ECHO_REPLY];
+        dyn.out_type_counts[ICMP6_MEMBERSHIP_QUERY] = icmp_stat.icp6s_outhist[ICMP6_MEMBERSHIP_QUERY];
+        dyn.out_type_counts[ICMP6_MEMBERSHIP_REPORT] = icmp_stat.icp6s_outhist[ICMP6_MEMBERSHIP_REPORT];
+        dyn.out_type_counts[ICMP6_MEMBERSHIP_REDUCTION] = icmp_stat.icp6s_outhist[ICMP6_MEMBERSHIP_REDUCTION];
+        dyn.out_type_counts[ND_ROUTER_SOLICIT] = icmp_stat.icp6s_outhist[ND_ROUTER_SOLICIT];
+        dyn.out_type_counts[ND_ROUTER_ADVERT] = icmp_stat.icp6s_outhist[ND_ROUTER_ADVERT];
+        dyn.out_type_counts[ND_NEIGHBOR_SOLICIT] = icmp_stat.icp6s_outhist[ND_NEIGHBOR_SOLICIT];
+        dyn.out_type_counts[ND_NEIGHBOR_ADVERT] = icmp_stat.icp6s_outhist[ND_NEIGHBOR_ADVERT];
+        dyn.out_type_counts[ND_REDIRECT] = icmp_stat.icp6s_outhist[ND_REDIRECT];
+        dyn.out_type_counts[ICMP6_V2_MEMBERSHIP_REPORT] = icmp_stat.icp6s_outhist[MLDV2_LISTENER_REPORT];
+        if (dynamic_data) *(struct nsi_ip_icmpstats_dynamic *)dynamic_data = dyn;
+        return STATUS_SUCCESS;
+    }
 #else
     FIXME( "not implemented\n" );
     return STATUS_NOT_IMPLEMENTED;
 #endif
 }
 
-static NTSTATUS ipv4_ipstats_get_all_parameters( const void *key, DWORD key_size, void *rw_data, DWORD rw_size,
-                                                 void *dynamic_data, DWORD dynamic_size, void *static_data, DWORD static_size )
+static NTSTATUS ipv4_ipstats_get_all_parameters( const void *key, UINT key_size, void *rw_data, UINT rw_size,
+                                                 void *dynamic_data, UINT dynamic_size, void *static_data, UINT static_size )
 {
     struct nsi_ip_ipstats_dynamic dyn;
     struct nsi_ip_ipstats_static stat;
@@ -506,7 +625,7 @@ static NTSTATUS ipv4_ipstats_get_all_parameters( const void *key, DWORD key_size
             if (!(ptr = fgets( buf, sizeof(buf), fp ))) break;
             if (!ascii_strncasecmp( buf, hdr, sizeof(hdr) - 1 ))
             {
-                DWORD in_recv, in_hdr_errs, fwd_dgrams, in_delivers, out_reqs;
+                UINT in_recv, in_hdr_errs, fwd_dgrams, in_delivers, out_reqs;
                 ptr += sizeof(hdr);
                 sscanf( ptr, "%*u %*u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u",
                         &in_recv,
@@ -584,8 +703,8 @@ static NTSTATUS ipv4_ipstats_get_all_parameters( const void *key, DWORD key_size
 #endif
 }
 
-static NTSTATUS ipv6_ipstats_get_all_parameters( const void *key, DWORD key_size, void *rw_data, DWORD rw_size,
-                                                 void *dynamic_data, DWORD dynamic_size, void *static_data, DWORD static_size )
+static NTSTATUS ipv6_ipstats_get_all_parameters( const void *key, UINT key_size, void *rw_data, UINT rw_size,
+                                                 void *dynamic_data, UINT dynamic_size, void *static_data, UINT static_size )
 {
     struct nsi_ip_ipstats_dynamic dyn;
     struct nsi_ip_ipstats_static stat;
@@ -625,7 +744,7 @@ static NTSTATUS ipv6_ipstats_get_all_parameters( const void *key, DWORD key_size
         };
         NTSTATUS status = STATUS_NOT_SUPPORTED;
         char buf[512], *ptr, *value;
-        DWORD i;
+        UINT i;
         FILE *fp;
 
         if (!(fp = fopen( "/proc/net/snmp6", "r" ))) return STATUS_NOT_SUPPORTED;
@@ -654,6 +773,37 @@ static NTSTATUS ipv6_ipstats_get_all_parameters( const void *key, DWORD key_size
         if (static_data) *(struct nsi_ip_ipstats_static *)static_data = stat;
         return status;
     }
+#elif defined(HAVE_SYS_SYSCTL_H) && defined(IPV6CTL_STATS) && (defined(HAVE_STRUCT_IP6STAT_IP6S_TOTAL) || defined(__APPLE__))
+    {
+        int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_STATS };
+        struct ip6stat ip_stat;
+        size_t needed;
+
+        needed = sizeof(ip_stat);
+        if (sysctl( mib, ARRAY_SIZE(mib), &ip_stat, &needed, NULL, 0 ) == -1) return STATUS_NOT_SUPPORTED;
+
+        dyn.in_recv = ip_stat.ip6s_total;
+        dyn.in_hdr_errs = ip_stat.ip6s_tooshort + ip_stat.ip6s_toosmall + ip_stat.ip6s_badvers +
+            ip_stat.ip6s_badoptions + ip_stat.ip6s_exthdrtoolong + ip_stat.ip6s_toomanyhdr;
+        dyn.in_addr_errs = ip_stat.ip6s_cantforward + ip_stat.ip6s_badscope + ip_stat.ip6s_notmember;
+        dyn.fwd_dgrams = ip_stat.ip6s_forward;
+        dyn.in_discards = ip_stat.ip6s_fragdropped;
+        dyn.in_delivers = ip_stat.ip6s_delivered;
+        dyn.out_reqs = ip_stat.ip6s_localout;
+        dyn.out_discards = ip_stat.ip6s_odropped;
+        dyn.out_no_routes = ip_stat.ip6s_noroute;
+        stat.reasm_timeout = ip_stat.ip6s_fragtimeout;
+        dyn.reasm_reqds = ip_stat.ip6s_fragments;
+        dyn.reasm_oks = ip_stat.ip6s_reassembled;
+        dyn.reasm_fails = ip_stat.ip6s_fragments - ip_stat.ip6s_reassembled;
+        dyn.frag_oks = ip_stat.ip6s_fragmented;
+        dyn.frag_fails = ip_stat.ip6s_cantfrag;
+        dyn.frag_creates = ip_stat.ip6s_ofragments;
+
+        if (dynamic_data) *(struct nsi_ip_ipstats_dynamic *)dynamic_data = dyn;
+        if (static_data) *(struct nsi_ip_ipstats_static *)static_data = stat;
+        return STATUS_SUCCESS;
+    }
 #else
     FIXME( "not implemented\n" );
     return STATUS_NOT_IMPLEMENTED;
@@ -665,7 +815,7 @@ static void unicast_fill_entry( struct ifaddrs *entry, void *key, struct nsi_ip_
 {
     struct nsi_ipv6_unicast_key placeholder, *key6 = key;
     struct nsi_ipv4_unicast_key *key4 = key;
-    DWORD scope_id = 0;
+    UINT scope_id = 0;
 
     if (!key)
     {
@@ -719,11 +869,11 @@ static void unicast_fill_entry( struct ifaddrs *entry, void *key, struct nsi_ip_
     if (stat) stat->creation_time = get_boot_time();
 }
 
-static NTSTATUS ip_unicast_enumerate_all( int family, void *key_data, DWORD key_size, void *rw_data, DWORD rw_size,
-                                          void *dynamic_data, DWORD dynamic_size,
-                                          void *static_data, DWORD static_size, DWORD_PTR *count )
+static NTSTATUS ip_unicast_enumerate_all( int family, void *key_data, UINT key_size, void *rw_data, UINT rw_size,
+                                          void *dynamic_data, UINT dynamic_size,
+                                          void *static_data, UINT static_size, UINT_PTR *count )
 {
-    DWORD num = 0;
+    UINT num = 0;
     NTSTATUS status = STATUS_SUCCESS;
     BOOL want_data = key_size || rw_size || dynamic_size || static_size;
     struct ifaddrs *addrs, *entry;
@@ -756,25 +906,25 @@ static NTSTATUS ip_unicast_enumerate_all( int family, void *key_data, DWORD key_
     return status;
 }
 
-static NTSTATUS ipv4_unicast_enumerate_all( void *key_data, DWORD key_size, void *rw_data, DWORD rw_size,
-                                            void *dynamic_data, DWORD dynamic_size,
-                                            void *static_data, DWORD static_size, DWORD_PTR *count )
+static NTSTATUS ipv4_unicast_enumerate_all( void *key_data, UINT key_size, void *rw_data, UINT rw_size,
+                                            void *dynamic_data, UINT dynamic_size,
+                                            void *static_data, UINT static_size, UINT_PTR *count )
 {
     return ip_unicast_enumerate_all( AF_INET, key_data, key_size, rw_data, rw_size,
                                      dynamic_data, dynamic_size, static_data, static_size, count );
 }
 
-static NTSTATUS ipv6_unicast_enumerate_all( void *key_data, DWORD key_size, void *rw_data, DWORD rw_size,
-                                            void *dynamic_data, DWORD dynamic_size,
-                                            void *static_data, DWORD static_size, DWORD_PTR *count )
+static NTSTATUS ipv6_unicast_enumerate_all( void *key_data, UINT key_size, void *rw_data, UINT rw_size,
+                                            void *dynamic_data, UINT dynamic_size,
+                                            void *static_data, UINT static_size, UINT_PTR *count )
 {
     return ip_unicast_enumerate_all( AF_INET6, key_data, key_size, rw_data, rw_size,
                                      dynamic_data, dynamic_size, static_data, static_size, count );
 }
 
-static NTSTATUS ip_unicast_get_all_parameters( const void *key, DWORD key_size, void *rw_data, DWORD rw_size,
-                                               void *dynamic_data, DWORD dynamic_size,
-                                               void *static_data, DWORD static_size )
+static NTSTATUS ip_unicast_get_all_parameters( const void *key, UINT key_size, void *rw_data, UINT rw_size,
+                                               void *dynamic_data, UINT dynamic_size,
+                                               void *static_data, UINT static_size )
 {
     int family = (key_size == sizeof(struct nsi_ipv4_unicast_key)) ? AF_INET : AF_INET6;
     NTSTATUS status = STATUS_NOT_FOUND;
@@ -812,10 +962,10 @@ static NTSTATUS ip_unicast_get_all_parameters( const void *key, DWORD key_size, 
 struct ipv4_neighbour_data
 {
     NET_LUID luid;
-    DWORD if_index;
+    UINT if_index;
     struct in_addr addr;
     BYTE phys_addr[IF_MAX_PHYS_ADDRESS_LENGTH];
-    DWORD state;
+    UINT state;
     USHORT phys_addr_len;
     BOOL is_router;
     BOOL is_unreachable;
@@ -850,11 +1000,11 @@ static void ipv4_neighbour_fill_entry( struct ipv4_neighbour_data *entry, struct
     }
 }
 
-static NTSTATUS ipv4_neighbour_enumerate_all( void *key_data, DWORD key_size, void *rw_data, DWORD rw_size,
-                                              void *dynamic_data, DWORD dynamic_size,
-                                              void *static_data, DWORD static_size, DWORD_PTR *count )
+static NTSTATUS ipv4_neighbour_enumerate_all( void *key_data, UINT key_size, void *rw_data, UINT rw_size,
+                                              void *dynamic_data, UINT dynamic_size,
+                                              void *static_data, UINT static_size, UINT_PTR *count )
 {
-    DWORD num = 0;
+    UINT num = 0;
     NTSTATUS status = STATUS_SUCCESS;
     BOOL want_data = key_size || rw_size || dynamic_size || static_size;
     struct ipv4_neighbour_data entry;
@@ -865,7 +1015,7 @@ static NTSTATUS ipv4_neighbour_enumerate_all( void *key_data, DWORD key_size, vo
 #ifdef __linux__
     {
         char buf[512], *ptr;
-        DWORD atf_flags;
+        UINT atf_flags;
         FILE *fp;
 
         if (!(fp = fopen( "/proc/net/arp", "r" ))) return STATUS_NOT_SUPPORTED;
@@ -992,9 +1142,9 @@ static NTSTATUS ipv4_neighbour_enumerate_all( void *key_data, DWORD key_size, vo
     return status;
 }
 
-static NTSTATUS ipv6_neighbour_enumerate_all( void *key_data, DWORD key_size, void *rw_data, DWORD rw_size,
-                                              void *dynamic_data, DWORD dynamic_size,
-                                              void *static_data, DWORD static_size, DWORD_PTR *count )
+static NTSTATUS ipv6_neighbour_enumerate_all( void *key_data, UINT key_size, void *rw_data, UINT rw_size,
+                                              void *dynamic_data, UINT dynamic_size,
+                                              void *static_data, UINT static_size, UINT_PTR *count )
 {
     FIXME( "not implemented\n" );
     return STATUS_NOT_IMPLEMENTED;
@@ -1003,12 +1153,12 @@ static NTSTATUS ipv6_neighbour_enumerate_all( void *key_data, DWORD key_size, vo
 struct ipv4_route_data
 {
     NET_LUID luid;
-    DWORD if_index;
+    UINT if_index;
     struct in_addr prefix;
-    DWORD prefix_len;
+    UINT prefix_len;
     struct in_addr next_hop;
-    DWORD metric;
-    DWORD protocol;
+    UINT metric;
+    UINT protocol;
     BYTE loopback;
 };
 
@@ -1056,11 +1206,11 @@ static void ipv4_forward_fill_entry( struct ipv4_route_data *entry, struct nsi_i
     }
 }
 
-static NTSTATUS ipv4_forward_enumerate_all( void *key_data, DWORD key_size, void *rw_data, DWORD rw_size,
-                                            void *dynamic_data, DWORD dynamic_size,
-                                            void *static_data, DWORD static_size, DWORD_PTR *count )
+static NTSTATUS ipv4_forward_enumerate_all( void *key_data, UINT key_size, void *rw_data, UINT rw_size,
+                                            void *dynamic_data, UINT dynamic_size,
+                                            void *static_data, UINT static_size, UINT_PTR *count )
 {
-    DWORD num = 0;
+    UINT num = 0;
     NTSTATUS status = STATUS_SUCCESS;
     BOOL want_data = key_size || rw_size || dynamic_size || static_size;
     struct ipv4_route_data entry;
@@ -1072,7 +1222,7 @@ static NTSTATUS ipv4_forward_enumerate_all( void *key_data, DWORD key_size, void
     {
         char buf[512], *ptr;
         struct in_addr mask;
-        DWORD rtf_flags;
+        UINT rtf_flags;
         FILE *fp;
 
         if (!(fp = fopen( "/proc/net/route", "r" ))) return STATUS_NOT_SUPPORTED;
@@ -1235,9 +1385,9 @@ static NTSTATUS ipv4_forward_enumerate_all( void *key_data, DWORD key_size, void
     return status;
 }
 
-static NTSTATUS ipv6_forward_enumerate_all( void *key_data, DWORD key_size, void *rw_data, DWORD rw_size,
-                                            void *dynamic_data, DWORD dynamic_size,
-                                            void *static_data, DWORD static_size, DWORD_PTR *count )
+static NTSTATUS ipv6_forward_enumerate_all( void *key_data, UINT key_size, void *rw_data, UINT rw_size,
+                                            void *dynamic_data, UINT dynamic_size,
+                                            void *static_data, UINT static_size, UINT_PTR *count )
 {
     FIXME( "not implemented\n" );
     *count = 0;
@@ -1249,7 +1399,7 @@ static struct module_table ipv4_tables[] =
     {
         NSI_IP_COMPARTMENT_TABLE,
         {
-            sizeof(DWORD), sizeof(struct nsi_ip_cmpt_rw),
+            sizeof(UINT), sizeof(struct nsi_ip_cmpt_rw),
             sizeof(struct nsi_ip_cmpt_dynamic), 0
         },
         NULL,
@@ -1314,7 +1464,7 @@ static struct module_table ipv6_tables[] =
     {
         NSI_IP_COMPARTMENT_TABLE,
         {
-            sizeof(DWORD), sizeof(struct nsi_ip_cmpt_rw),
+            sizeof(UINT), sizeof(struct nsi_ip_cmpt_rw),
             sizeof(struct nsi_ip_cmpt_dynamic), 0
         },
         NULL,

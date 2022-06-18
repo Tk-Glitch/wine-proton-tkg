@@ -1256,9 +1256,12 @@ void wined3d_device_gl_delete_opengl_contexts_cs(void *object)
     device->shader_backend->shader_free_private(device, context);
     wined3d_device_gl_destroy_dummy_textures(device_gl, context_gl);
 
-    wined3d_context_gl_submit_command_fence(context_gl);
-    wined3d_context_gl_wait_command_fence(context_gl,
-            wined3d_device_gl(context_gl->c.device)->current_fence_id - 1);
+    if (context_gl->c.d3d_info->fences)
+    {
+        wined3d_context_gl_submit_command_fence(context_gl);
+        wined3d_context_gl_wait_command_fence(context_gl,
+                wined3d_device_gl(context_gl->c.device)->current_fence_id - 1);
+    }
     wined3d_allocator_cleanup(&device_gl->allocator);
 
     context_release(context);
@@ -3773,7 +3776,7 @@ static HRESULT process_vertices_strided(const struct wined3d_device *device, DWO
                 diffuse_colour = material_diffuse;
             }
             wined3d_color_clamp(&diffuse_colour, &diffuse_colour, 0.0f, 1.0f);
-            *((DWORD *)dest_ptr) = wined3d_format_convert_from_float(output_colour_format, &diffuse_colour);
+            wined3d_format_convert_from_float(output_colour_format, &diffuse_colour, dest_ptr);
             dest_ptr += sizeof(DWORD);
         }
 
@@ -3797,7 +3800,7 @@ static HRESULT process_vertices_strided(const struct wined3d_device *device, DWO
             }
             update_fog_factor(&specular_colour.a, &ls);
             wined3d_color_clamp(&specular_colour, &specular_colour, 0.0f, 1.0f);
-            *((DWORD *)dest_ptr) = wined3d_format_convert_from_float(output_colour_format, &specular_colour);
+            wined3d_format_convert_from_float(output_colour_format, &specular_colour, dest_ptr);
             dest_ptr += sizeof(DWORD);
         }
 

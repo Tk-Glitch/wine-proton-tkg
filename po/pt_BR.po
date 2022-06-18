@@ -4007,7 +4007,9 @@ msgid "Cannot modify non-writable property '|'"
 msgstr "Não pode modificar propriedade não gravável '|'"
 
 #: dlls/jscript/jscript.rc:79
-msgid "'this' is not a Map object"
+#, fuzzy
+#| msgid "'this' is not a Map object"
+msgid "'this' is not a | object"
 msgstr "'this' não é um objeto Map"
 
 #: dlls/jscript/jscript.rc:80
@@ -16447,7 +16449,7 @@ msgid ""
 "     Access the registry using the 64-bit view.\n"
 "\n"
 msgstr ""
-" /reg:32\n"
+"  /reg:32\n"
 "     Acessa o registro utilizando o modo 32-bits.\n"
 "\n"
 "  /reg:64\n"

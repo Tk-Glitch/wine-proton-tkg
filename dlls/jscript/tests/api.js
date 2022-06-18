@@ -287,6 +287,8 @@ ok(Object.prototype.hasOwnProperty('toString'), "Object.prototype.hasOwnProperty
 ok(Object.prototype.hasOwnProperty('isPrototypeOf'), "Object.prototype.hasOwnProperty('isPrototypeOf') is false");
 ok(Function.prototype.hasOwnProperty('call'), "Function.prototype.hasOwnProperty('call') is false");
 
+Object();
+new Object();
 obj = new Object();
 
 ok(!obj.hasOwnProperty('toString'), "obj.hasOwnProperty('toString') is true");
@@ -296,28 +298,37 @@ ok(!Object.hasOwnProperty('isPrototypeOf'), "Object.hasOwnProperty('isPrototypeO
 ok(!parseFloat.hasOwnProperty('call'), "parseFloat.hasOwnProperty('call') is true");
 ok(!Function.hasOwnProperty('call'), "Function.hasOwnProperty('call') is true");
 
+Array();
+new Array();
 obj = new Array();
 ok(Array.prototype.hasOwnProperty('sort'), "Array.prototype.hasOwnProperty('sort') is false");
 ok(Array.prototype.hasOwnProperty('length'), "Array.prototype.hasOwnProperty('length') is false");
 ok(!obj.hasOwnProperty('sort'), "obj.hasOwnProperty('sort') is true");
 ok(obj.hasOwnProperty('length'), "obj.hasOwnProperty('length') is true");
 
+Boolean();
+new Boolean();
 obj = new Boolean(false);
 ok(!obj.hasOwnProperty('toString'), "obj.hasOwnProperty('toString') is true");
 ok(!Boolean.hasOwnProperty('toString'), "Boolean.hasOwnProperty('toString') is true");
 ok(Boolean.prototype.hasOwnProperty('toString'), "Boolean.prototype.hasOwnProperty('toString') is false");
 
+Date();
+new Date();
 obj = new Date();
 ok(!obj.hasOwnProperty('getTime'), "obj.hasOwnProperty('getTime') is true");
 ok(!Date.hasOwnProperty('getTime'), "Date.hasOwnProperty('getTime') is true");
 ok(Date.prototype.hasOwnProperty('getTime'), "Date.prototype.hasOwnProperty('getTime') is false");
 ok(!("now" in Date), "now found in Date");
 
+Number();
+new Number();
 obj = new Number();
 ok(!obj.hasOwnProperty('toFixed'), "obj.hasOwnProperty('toFixed') is true");
 ok(!Number.hasOwnProperty('toFixed'), "Number.hasOwnProperty('toFixed') is true");
 ok(Number.prototype.hasOwnProperty('toFixed'), "Number.prototype.hasOwnProperty('toFixed') is false");
 
+/x/;
 obj = /x/;
 ok(!obj.hasOwnProperty('exec'), "obj.hasOwnProperty('exec') is true");
 ok(obj.hasOwnProperty('source'), "obj.hasOwnProperty('source') is false");
@@ -325,6 +336,8 @@ ok(!RegExp.hasOwnProperty('exec'), "RegExp.hasOwnProperty('exec') is true");
 ok(!RegExp.hasOwnProperty('source'), "RegExp.hasOwnProperty('source') is true");
 ok(RegExp.prototype.hasOwnProperty('source'), "RegExp.prototype.hasOwnProperty('source') is false");
 
+String();
+new String();
 obj = new String();
 ok(!obj.hasOwnProperty('charAt'), "obj.hasOwnProperty('charAt') is true");
 ok(obj.hasOwnProperty('length'), "obj.hasOwnProperty('length') is false");
@@ -1351,6 +1364,11 @@ tmp = (new Number()).toString();
 ok(tmp === "0", "num().toString = " + tmp);
 tmp = (new Number(5.5)).toString(2);
 ok(tmp === "101.1", "num(5.5).toString(2) = " + tmp);
+
+tmp = (new Number(12)).toLocaleString();
+ok(tmp.indexOf(String.fromCharCode(0)) == -1, "invalid null byte");
+tmp = Number.prototype.toLocaleString.call(NaN);
+ok(tmp.indexOf(String.fromCharCode(0)) == -1, "invalid null byte");
 
 tmp = (new Number(3)).toFixed(3);
 ok(tmp === "3.000", "num(3).toFixed(3) = " + tmp);
@@ -2579,8 +2597,11 @@ testException(function() {date.setTime();}, "E_ARG_NOT_OPT");
 testException(function() {date.setYear();}, "E_ARG_NOT_OPT");
 testException(function() {arr.test();}, "E_NO_PROPERTY");
 testException(function() {[1,2,3].sort(nullDisp);}, "E_JSCRIPT_EXPECTED");
+testException(function() {var o = new Object(); o.length = 1; o[0] = "a"; Array.prototype.toLocaleString.call(o);}, "E_NOT_ARRAY");
 testException(function() {Number.prototype.toString.call(arr);}, "E_NOT_NUM");
 testException(function() {Number.prototype.toFixed.call(arr);}, "E_NOT_NUM");
+testException(function() {Number.prototype.toLocaleString.call(arr);}, "E_NOT_NUM");
+testException(function() {Number.prototype.toLocaleString.call(null);}, "E_NOT_NUM");
 testException(function() {(new Number(3)).toString(1);}, "E_INVALID_CALL_ARG");
 testException(function() {(new Number(3)).toFixed(21);}, "E_FRACTION_DIGITS_OUT_OF_RANGE");
 testException(function() {(new Number(1)).toPrecision(0);}, "E_PRECISION_OUT_OF_RANGE");
@@ -2611,6 +2632,10 @@ testException(function() {delete false;}, "E_INVALID_DELETE");
 testException(function() {undefined.toString();}, "E_OBJECT_EXPECTED");
 testException(function() {null.toString();}, "E_OBJECT_EXPECTED");
 testException(function() {RegExp.prototype.toString.call(new Object());}, "E_REGEXP_EXPECTED");
+testException(function() {/a/.lastIndex();}, "E_NOT_FUNC");
+testException(function() {"a".length();}, "E_NOT_FUNC");
+testException(function() {((function() { var f = Number.prototype.toString; return (function() { return f(); }); })())();}, "E_NOT_NUM");
+testException(function() {((function() { var f = Object.prototype.hasOwnProperty; return (function() { return f("f"); }); })())();}, "E_OBJECT_EXPECTED");
 
 testException(function() { return arguments.callee(); }, "E_STACK_OVERFLOW");
 
@@ -3125,6 +3150,8 @@ ok(String.length == 1, "String.length = " + String.length);
 var tmp = createArray();
 ok(getVT(tmp) == "VT_ARRAY|VT_VARIANT", "getVT(createArray()) = " + getVT(tmp));
 ok(getVT(VBArray(tmp)) == "VT_ARRAY|VT_VARIANT", "getVT(VBArray(tmp)) = " + getVT(VBArray(tmp)));
+VBArray(tmp);
+new VBArray(tmp);
 tmp = new VBArray(tmp);
 tmp = new VBArray(VBArray(createArray()));
 ok(tmp.dimensions() == 2, "tmp.dimensions() = " + tmp.dimensions());

@@ -899,8 +899,17 @@ static void test_CopyFileW(void)
     ok(!ret && GetLastError() == ERROR_FILE_EXISTS,
        "CopyFileW: unexpected error %ld\n", GetLastError());
 
+    SetLastError(0xdeadbeef);
     ret = CopyFileW(source, dest, FALSE);
     ok(ret, "CopyFileW: error %ld\n", GetLastError());
+    ok(GetLastError() == ERROR_SUCCESS || broken(GetLastError() == ERROR_INVALID_PARAMETER) /* some win8 machines */,
+        "Unexpected error %lu.\n", GetLastError());
+
+    SetLastError(0xdeadbeef);
+    ret = CopyFileExW(source, dest, NULL, NULL, NULL,  0 );
+    ok(ret, "CopyFileExW: error %ld\n", GetLastError());
+    ok(GetLastError() == ERROR_SUCCESS || broken(GetLastError() == ERROR_INVALID_PARAMETER) /* some win8 machines */,
+        "Unexpected error %lu.\n", GetLastError());
 
     ret = DeleteFileW(source);
     ok(ret, "DeleteFileW: error %ld\n", GetLastError());
@@ -2148,7 +2157,7 @@ static void test_MoveFileW(void)
 
     ret = MoveFileW(source, dest);
     ok(!ret && GetLastError() == ERROR_ALREADY_EXISTS,
-       "CopyFileW: unexpected error %ld\n", GetLastError());
+       "MoveFileW: unexpected error %ld\n", GetLastError());
 
     ret = DeleteFileW(source);
     ok(ret, "DeleteFileW: error %ld\n", GetLastError());

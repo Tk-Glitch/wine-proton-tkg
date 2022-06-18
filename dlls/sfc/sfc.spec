@@ -15,4 +15,4 @@
 @ stdcall SfcIsKeyProtected(long wstr long) sfc_os.SfcIsKeyProtected
 @ stub SfcWLEventLogoff
 @ stub SfcWLEventLogon
-@ stub SfpVerifyFile
+@ stdcall SfpVerifyFile(str ptr long) sfc_os.SfpVerifyFile

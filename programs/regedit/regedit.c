@@ -30,21 +30,21 @@ WINE_DEFAULT_DEBUG_CHANNEL(regedit);
 
 static void output_writeconsole(const WCHAR *str, DWORD wlen)
 {
-    DWORD count, ret;
+    DWORD count;
 
-    ret = WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE), str, wlen, &count, NULL);
-    if (!ret)
+    if (!WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE), str, wlen, &count, NULL))
     {
         DWORD len;
         char  *msgA;
 
         /* WriteConsole() fails on Windows if its output is redirected. If this occurs,
-         * we should call WriteFile() and assume the console encoding is still correct.
+         * we should call WriteFile() with OEM code page.
          */
-        len = WideCharToMultiByte(GetConsoleOutputCP(), 0, str, wlen, NULL, 0, NULL, NULL);
+        len = WideCharToMultiByte(GetOEMCP(), 0, str, wlen, NULL, 0, NULL, NULL);
         msgA = heap_xalloc(len);
+        if (!msgA) return;
 
-        WideCharToMultiByte(GetConsoleOutputCP(), 0, str, wlen, msgA, len, NULL, NULL);
+        WideCharToMultiByte(GetOEMCP(), 0, str, wlen, msgA, len, NULL, NULL);
         WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), msgA, len, &count, FALSE);
         heap_free(msgA);
     }
@@ -107,16 +107,14 @@ static void PerformRegAction(REGEDIT_ACTION action, WCHAR **argv, int *i)
     switch (action) {
     case ACTION_ADD: {
             WCHAR *filename = argv[*i];
-            WCHAR hyphen[] = {'-',0};
             WCHAR *realname = NULL;
             FILE *reg_file;
 
-            if (!lstrcmpW(filename, hyphen))
+            if (!lstrcmpW(filename, L"-"))
                 reg_file = stdin;
             else
             {
                 int size;
-                WCHAR rb_mode[] = {'r','b',0};
 
                 size = SearchPathW(NULL, filename, NULL, 0, NULL, NULL);
                 if (size > 0)
@@ -130,11 +128,10 @@ static void PerformRegAction(REGEDIT_ACTION action, WCHAR **argv, int *i)
                     heap_free(realname);
                     return;
                 }
-                reg_file = _wfopen(realname, rb_mode);
+                reg_file = _wfopen(realname, L"rb");
                 if (reg_file == NULL)
                 {
-                    WCHAR regedit[] = {'r','e','g','e','d','i','t',0};
-                    _wperror(regedit);
+                    _wperror(L"regedit");
                     output_message(STRING_CANNOT_OPEN_FILE, filename);
                     heap_free(realname);
                     return;

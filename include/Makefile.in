@@ -14,6 +14,7 @@ SOURCES = \
 	amaudio.h \
 	amsi.idl \
 	amstream.idl \
+	amva.h \
 	amvideo.idl \
 	appcompatapi.h \
 	appmgmt.h \
@@ -105,6 +106,7 @@ SOURCES = \
 	d2d1_1.idl \
 	d2d1_2.idl \
 	d2d1_3.idl \
+	d2d1effectauthor.idl \
 	d2d1effects.idl \
 	d2d1effects_1.idl \
 	d2d1effects_2.idl \
@@ -428,6 +430,7 @@ SOURCES = \
 	midles.h \
 	mimeinfo.idl \
 	mimeole.idl \
+	minidumpapiset.h \
 	minmax.h \
 	mlang.idl \
 	mmc.idl \
@@ -436,6 +439,7 @@ SOURCES = \
 	mmreg.h \
 	mmstream.idl \
 	mmsystem.h \
+	mpegtype.idl \
 	mprapi.h \
 	mprerror.h \
 	msacm.h \
@@ -687,6 +691,7 @@ SOURCES = \
 	slerror.h \
 	slpublic.h \
 	snmp.h \
+	socketapi.h \
 	softpub.h \
 	spatialaudioclient.idl \
 	sperror.h \
@@ -751,6 +756,7 @@ SOURCES = \
 	verrsrc.h \
 	vfw.h \
 	vfwmsgs.h \
+	videoacc.idl \
 	virtdisk.h \
 	vmr9.idl \
 	vmrender.idl \
@@ -789,11 +795,14 @@ SOURCES = \
 	windows.devices.power.idl \
 	windows.foundation.collections.idl \
 	windows.foundation.idl \
+	windows.foundation.metadata.idl \
+	windows.foundation.numerics.idl \
 	windows.gaming.input.custom.idl \
 	windows.gaming.input.forcefeedback.idl \
 	windows.gaming.input.idl \
 	windows.globalization.idl \
 	windows.h \
+	windows.media.closedcaptioning.idl \
 	windows.media.devices.idl \
 	windows.media.idl \
 	windows.media.speechrecognition.idl \
@@ -804,6 +813,7 @@ SOURCES = \
 	windows.system.idl \
 	windows.system.power.idl \
 	windows.system.userprofile.idl \
+	windows.ui.idl \
 	windowscontracts.idl \
 	windowsx.h \
 	wine/debug.h \

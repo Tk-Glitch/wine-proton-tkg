@@ -3889,6 +3889,7 @@ static void dump_get_token_sid_reply( const struct get_token_sid_reply *req )
 static void dump_get_token_groups_request( const struct get_token_groups_request *req )
 {
     fprintf( stderr, " handle=%04x", req->handle );
+    fprintf( stderr, ", attr_mask=%08x", req->attr_mask );
 }
 
 static void dump_get_token_groups_reply( const struct get_token_groups_reply *req )
@@ -4003,7 +4004,8 @@ static void dump_get_directory_entry_request( const struct get_directory_entry_r
 
 static void dump_get_directory_entry_reply( const struct get_directory_entry_reply *req )
 {
-    fprintf( stderr, " name_len=%u", req->name_len );
+    fprintf( stderr, " total_len=%u", req->total_len );
+    fprintf( stderr, ", name_len=%u", req->name_len );
     dump_varargs_unicode_str( ", name=", min(cur_size,req->name_len) );
     dump_varargs_unicode_str( ", type=", cur_size );
 }

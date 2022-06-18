@@ -234,6 +234,24 @@ LPVOID WINAPI DECLSPEC_HOTPATCH MapViewOfFileEx( HANDLE handle, DWORD access, DW
     return addr;
 }
 
+/***********************************************************************
+ *             MapViewOfFile3   (kernelbase.@)
+ */
+LPVOID WINAPI DECLSPEC_HOTPATCH MapViewOfFile3( HANDLE handle, HANDLE process, PVOID baseaddr, ULONG64 offset,
+        SIZE_T size, ULONG alloc_type, ULONG protection, MEM_EXTENDED_PARAMETER *params, ULONG params_count )
+{
+    LARGE_INTEGER off;
+    void *addr;
+
+    addr = baseaddr;
+    off.QuadPart = offset;
+    if (!set_ntstatus( NtMapViewOfSectionEx( handle, process, &addr, &off, &size, alloc_type, protection,
+            params, params_count )))
+    {
+        return NULL;
+    }
+    return addr;
+}
 
 /***********************************************************************
  *	       ReadProcessMemory   (kernelbase.@)
@@ -286,6 +304,24 @@ BOOL WINAPI DECLSPEC_HOTPATCH UnmapViewOfFile( const void *addr )
 
 
 /***********************************************************************
+ *             UnmapViewOfFile2   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH UnmapViewOfFile2( HANDLE process, void *addr, ULONG flags )
+{
+    return set_ntstatus( NtUnmapViewOfSectionEx( process, addr, flags ));
+}
+
+
+/***********************************************************************
+ *             UnmapViewOfFileEx   (kernelbase.@)
+ */
+BOOL WINAPI DECLSPEC_HOTPATCH UnmapViewOfFileEx( void *addr, ULONG flags )
+{
+    return set_ntstatus( NtUnmapViewOfSectionEx( GetCurrentProcess(), addr, flags ));
+}
+
+
+/***********************************************************************
  *             VirtualAlloc   (kernelbase.@)
  */
 LPVOID WINAPI DECLSPEC_HOTPATCH VirtualAlloc( void *addr, SIZE_T size, DWORD type, DWORD protect )
@@ -316,6 +352,7 @@ LPVOID WINAPI DECLSPEC_HOTPATCH VirtualAlloc2( HANDLE process, void *addr, SIZE_
 {
     LPVOID ret = addr;
 
+    if (!process) process = GetCurrentProcess();
     if (!set_ntstatus( NtAllocateVirtualMemoryEx( process, &ret, &size, type, protect, parameters, count )))
         return NULL;
     return ret;
@@ -565,12 +602,67 @@ BOOL WINAPI DECLSPEC_HOTPATCH HeapValidate( HANDLE heap, DWORD flags, LPCVOID pt
 }
 
 
+/* undocumented RtlWalkHeap structure */
+
+struct rtl_heap_entry
+{
+    LPVOID lpData;
+    SIZE_T cbData; /* differs from PROCESS_HEAP_ENTRY */
+    BYTE cbOverhead;
+    BYTE iRegionIndex;
+    WORD wFlags; /* value differs from PROCESS_HEAP_ENTRY */
+    union {
+        struct {
+            HANDLE hMem;
+            DWORD dwReserved[3];
+        } Block;
+        struct {
+            DWORD dwCommittedSize;
+            DWORD dwUnCommittedSize;
+            LPVOID lpFirstBlock;
+            LPVOID lpLastBlock;
+        } Region;
+    };
+};
+
+/* rtl_heap_entry flags, names made up */
+
+#define RTL_HEAP_ENTRY_BUSY         0x0001
+#define RTL_HEAP_ENTRY_REGION       0x0002
+#define RTL_HEAP_ENTRY_BLOCK        0x0010
+#define RTL_HEAP_ENTRY_UNCOMMITTED  0x1000
+#define RTL_HEAP_ENTRY_COMMITTED    0x4000
+#define RTL_HEAP_ENTRY_LFH          0x8000
+
+
 /***********************************************************************
  *           HeapWalk   (kernelbase.@)
  */
 BOOL WINAPI DECLSPEC_HOTPATCH HeapWalk( HANDLE heap, PROCESS_HEAP_ENTRY *entry )
 {
-    return set_ntstatus( RtlWalkHeap( heap, entry ));
+    struct rtl_heap_entry rtl_entry = {.lpData = entry->lpData};
+    NTSTATUS status;
+
+    if (!(status = RtlWalkHeap( heap, &rtl_entry )))
+    {
+        entry->lpData = rtl_entry.lpData;
+        entry->cbData = rtl_entry.cbData;
+        entry->cbOverhead = rtl_entry.cbOverhead;
+        entry->iRegionIndex = rtl_entry.iRegionIndex;
+
+        if (rtl_entry.wFlags & RTL_HEAP_ENTRY_BUSY)
+            entry->wFlags = PROCESS_HEAP_ENTRY_BUSY;
+        else if (rtl_entry.wFlags & RTL_HEAP_ENTRY_REGION)
+            entry->wFlags = PROCESS_HEAP_REGION;
+        else if (rtl_entry.wFlags & RTL_HEAP_ENTRY_UNCOMMITTED)
+            entry->wFlags = PROCESS_HEAP_UNCOMMITTED_RANGE;
+        else
+            entry->wFlags = 0;
+
+        memcpy( &entry->u.Region, &rtl_entry.Region, sizeof(entry->u.Region) );
+    }
+
+    return set_ntstatus( status );
 }
 
 
@@ -608,14 +700,8 @@ struct mem_entry
 C_ASSERT(sizeof(struct mem_entry) == 2 * sizeof(void *));
 
 #define MAX_MEM_HANDLES  0x10000
-static struct mem_entry mem_entries[MAX_MEM_HANDLES];
-static struct mem_entry *next_free_mem = mem_entries;
-
-static struct kernelbase_global_data kernelbase_global_data =
-{
-    .mem_entries = mem_entries,
-    .mem_entries_end = mem_entries + MAX_MEM_HANDLES,
-};
+static struct mem_entry *next_free_mem;
+static struct kernelbase_global_data global_data = {0};
 
 /* align the storage needed for the HLOCAL on an 8-byte boundary thus
  * LocalAlloc/LocalReAlloc'ing with LMEM_MOVEABLE of memory with
@@ -627,7 +713,7 @@ static struct kernelbase_global_data kernelbase_global_data =
 static inline struct mem_entry *unsafe_mem_from_HLOCAL( HLOCAL handle )
 {
     struct mem_entry *mem = CONTAINING_RECORD( handle, struct mem_entry, ptr );
-    struct kernelbase_global_data *data = &kernelbase_global_data;
+    struct kernelbase_global_data *data = &global_data;
     if (((UINT_PTR)handle & ((sizeof(void *) << 1) - 1)) != sizeof(void *)) return NULL;
     if (mem < data->mem_entries || mem >= data->mem_entries_end) return NULL;
     if (!(mem->flags & MEM_FLAG_USED)) return NULL;
@@ -646,6 +732,12 @@ static inline void *unsafe_ptr_from_HLOCAL( HLOCAL handle )
     return handle;
 }
 
+void init_global_data(void)
+{
+    global_data.mem_entries = VirtualAlloc( NULL, MAX_MEM_HANDLES * sizeof(struct mem_entry), MEM_COMMIT, PAGE_READWRITE );
+    if (!(next_free_mem = global_data.mem_entries)) ERR( "Failed to allocate kernelbase global handle table\n" );
+    global_data.mem_entries_end = global_data.mem_entries + MAX_MEM_HANDLES;
+}
 
 /***********************************************************************
  *           KernelBaseGetGlobalData   (kernelbase.@)
@@ -653,7 +745,7 @@ static inline void *unsafe_ptr_from_HLOCAL( HLOCAL handle )
 void *WINAPI KernelBaseGetGlobalData(void)
 {
     WARN_(globalmem)( "semi-stub!\n" );
-    return &kernelbase_global_data;
+    return &global_data;
 }
 
 
@@ -709,7 +801,7 @@ HLOCAL WINAPI DECLSPEC_HOTPATCH LocalAlloc( UINT flags, SIZE_T size )
     }
 
     RtlLockHeap( heap );
-    if ((mem = next_free_mem) < mem_entries || mem >= mem_entries + MAX_MEM_HANDLES)
+    if ((mem = next_free_mem) < global_data.mem_entries || mem >= global_data.mem_entries_end)
         mem = NULL;
     else
     {

@@ -28,6 +28,7 @@ var JS_E_REGEXP_EXPECTED = 0x800a1398;
 var JS_E_INVALID_WRITABLE_PROP_DESC = 0x800a13ac;
 var JS_E_NONCONFIGURABLE_REDEFINED = 0x800a13d6;
 var JS_E_NONWRITABLE_MODIFIED = 0x800a13d7;
+var JS_E_WRONG_THIS = 0x800a13fc;
 
 var tests = [];
 
@@ -68,6 +69,123 @@ sync_test("toISOString", function() {
     expect_exception(function() { new Date(31494784780800001).toISOString(); });
 });
 
+sync_test("Array toLocaleString", function() {
+    var r = Array.prototype.toLocaleString.length, old = Number.prototype.toLocaleString;
+    var s = external.listSeparator + ' ';
+    ok(r === 0, "length = " + r);
+
+    r = [5];
+    r.toLocaleString = function(a, b, c) { return a + " " + b + " " + c; };
+    Number.prototype.toLocaleString = function() { return "aBc"; };
+
+    r = [new Number(3), r, new Number(12)].toLocaleString("foo", "bar", "baz");
+    ok(r === "aBc"+s+"undefined undefined undefined"+s+"aBc", "toLocaleString returned " + r);
+
+    r = [3].toLocaleString();  /* primitive number value not affected */
+    if(external.isEnglish)
+        ok(r === "3.00", "[3].toLocaleString returned " + r);
+    else
+        ok(r !== "aBc", "[3].toLocaleString returned " + r);
+    Number.prototype.toLocaleString = old;
+
+    r = Object.create(null);
+    r.toString = function() { return "foo"; }
+    try {
+        Array.prototype.toLocaleString.call([r]);
+        ok(false, "expected exception calling it on array with object without toLocaleString");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_FUNCTION_EXPECTED, "called on array with object without toLocaleString threw " + n);
+    }
+
+    r = { length: 2 };
+    r[0] = { toLocaleString: function() { return "foo"; } }
+    r[1] = { toLocaleString: function() { return "bar"; } }
+    r = Array.prototype.toLocaleString.call(r);
+    ok(r === "foo"+s+"bar", "toLocaleString on array-like object returned " + r);
+
+    r = Array.prototype.toLocaleString.call({});
+    ok(r === "", "toLocaleString on {} returned " + r);
+
+    r = Array.prototype.toLocaleString.call("ab");
+    ok(r === "a"+s+"b", "toLocaleString on 'ab' returned " + r);
+
+    try {
+        Array.prototype.toLocaleString.call(undefined);
+        ok(false, "expected exception calling it on undefined");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "called on undefined threw " + n);
+    }
+    try {
+        Array.prototype.toLocaleString.call(null);
+        ok(false, "expected exception calling it on null");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "called on null threw " + n);
+    }
+    try {
+        Array.prototype.toLocaleString.call(external.nullDisp);
+        ok(false, "expected exception calling it on nullDisp");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "called on nullDisp threw " + n);
+    }
+});
+
+sync_test("Number toLocaleString", function() {
+    var r = Number.prototype.toLocaleString.length;
+    ok(r === 0, "length = " + r);
+    var tests = [
+        [ 0.0,          "0" ],
+        [ 1234.5,       "1,234.5" ],
+        [ -1337.7331,   "-1,337.733" ],
+        [ -0.0123,      "-0.012" ],
+        [-0.0198,       "-0.02" ],
+        [ 0.004,        "0.004" ],
+        [ 99.004,       "99.004" ],
+        [ 99.0004,      "99" ],
+        [ 65536.5,      "65,536.5" ],
+        [ NaN,          "NaN" ]
+    ];
+
+    if(external.isEnglish) {
+        /* Some recent Win8.1 updates have old jscript behavior */
+        if(Number.prototype.toLocaleString.call(0.0) === "0.00")
+            win_skip("skipping tests due to old behavior");
+        else
+            for(var i = 0; i < tests.length; i++) {
+                r = Number.prototype.toLocaleString.call(tests[i][0]);
+                ok(r === tests[i][1], "[" + i + "] got " + r);
+            }
+    }
+
+    try {
+        Number.prototype.toLocaleString.call("50");
+        ok(false, "expected exception calling it on string");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_WRONG_THIS || broken(n === JS_E_NUMBER_EXPECTED) /* newer Win8.1 */,
+           "called on string threw " + n);
+    }
+    try {
+        Number.prototype.toLocaleString.call(undefined);
+        ok(false, "expected exception calling it on undefined");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_WRONG_THIS || broken(n === JS_E_NUMBER_EXPECTED) /* newer Win8.1 */,
+           "called on undefined threw " + n);
+    }
+    try {
+        Number.prototype.toLocaleString.call(external.nullDisp);
+        ok(false, "expected exception calling it on nullDisp");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_WRONG_THIS || broken(n === JS_E_NUMBER_EXPECTED) /* newer Win8.1 */,
+           "called on nullDisp threw " + n);
+    }
+});
+
 sync_test("indexOf", function() {
     function expect(array, args, exr) {
         var r = Array.prototype.indexOf.apply(array, args);
@@ -92,6 +210,97 @@ sync_test("indexOf", function() {
     expect({"4": 4, length: 3}, [4], -1);
     expect({"test": true}, [true], -1);
     expect([1,2,3], [2, 1.9], 1);
+});
+
+sync_test("lastIndexOf", function() {
+    function expect(array, args, exr) {
+        var r = Array.prototype.lastIndexOf.apply(array, args);
+        ok(r == exr, "lastIndexOf returned " + r + " expected " + exr);
+    }
+
+    ok(Array.prototype.lastIndexOf.length == 1, "lastIndexOf.length = " + Array.prototype.lastIndexOf.length);
+
+    expect([1,2,3], [2], 1);
+    expect([1,undefined,3], [undefined], 1);
+    expect([1,undefined,3], [], 1);
+    expect([1,,3], [undefined], -1);
+    expect([1,undefined,undefined], [undefined], 2);
+    expect([1,2,3,2,5,6], [2, 2], 1);
+    expect([1,2,3,2,5,6], [2], 3);
+    expect([1,2,3,2,5,6], [2, -3], 3);
+    expect([1,2,3,2,5,6], [2, -4], 1);
+    expect([1,2,3,2,5,6], [1, -100], -1);
+    expect([1,2,3,2,5,6], [2, 100], 3);
+    expect("abcba", ["b"], 3);
+    expect(true, [true], -1);
+    expect({"4": 4, length: 5}, [4], 4);
+    expect({"4": 4, length: 5}, [undefined], -1);
+    expect({"4": 4, length: 3}, [4], -1);
+    expect({"test": true}, [true], -1);
+    expect([1,2,3], [2, 1.9], 1);
+    expect([1,2,3], [2, 0.9], -1);
+});
+
+sync_test("filter", function() {
+    ok(Array.prototype.filter.length === 1, "filter.length = " + Array.prototype.filter.length);
+
+    var arr = ["a","foobar",true,"b",42,0,Math,null,undefined,[1,2,3,"4"]];
+    delete arr[1];
+
+    function test(expect, fn, expect_this) {
+        var mismatch = false, r = function(v, i, a) {
+            ok(a === arr, "unexpected array " + arr);
+            ok(v === arr[i], "value = " + v + ", expected " + arr[i]);
+            ok(this === (expect_this ? expect_this : window), "this = " + this + ", expected " + expect_this);
+            return fn(v);
+        };
+        r = expect_this ? Array.prototype.filter.call(arr, r, expect_this) : Array.prototype.filter.call(arr, r);
+        ok(r.length === expect.length, "filtered array length = " + r.length + ", expected " + expect.length);
+        for(var i = 0; i < r.length; i++)
+            if(r[i] !== expect[i])
+                mismatch = true;
+        ok(!mismatch, "filtered array = " + r + ", expected " + expect);
+    }
+
+    test([], function(v) { return false; });
+    test(["a",true,"b",42,0,Math,null,undefined,arr[9]], function(v) { if(arr[1] === "foobar") delete arr[1]; return true; });
+    test(["a","b"], function(v) { if(v === "b") delete arr[0]; return typeof v === "string"; });
+    test(["b"], function(v) { if(arr[arr.length - 1] !== "c") arr.push("c"); return typeof v === "string"; });
+    test([true,"b",42,Math,arr[9],"c"], function(v) { return v; }, Object);
+});
+
+sync_test("every & some", function() {
+    ok(Array.prototype.every.length === 1, "every.length = " + Array.prototype.every.length);
+    ok(Array.prototype.some.length === 1, "some.length = " + Array.prototype.some.length);
+    var arr = ["foobar"];
+
+    function test(expect_every, expect_some, fn, expect_this) {
+        var cb = function(v, i, a) {
+            ok(a === arr, "unexpected array " + arr);
+            ok(v === arr[i], "value = " + v + ", expected " + arr[i]);
+            ok(this === (expect_this ? expect_this : window), "this = " + this + ", expected " + expect_this);
+            return fn(v);
+        };
+        r = expect_this ? Array.prototype.every.call(arr, cb, expect_this) : Array.prototype.every.call(arr, cb);
+        ok(r === expect_every, "'every' = " + r);
+        r = expect_this ? Array.prototype.some.call(arr, cb, expect_this) : Array.prototype.some.call(arr, cb);
+        ok(r === expect_some, "'some' = " + r);
+    }
+
+    delete arr[0];
+    test(true, false, function(v) { return false; });
+    test(true, false, function(v) { return true; });
+
+    arr = [1,"2",3];
+    test(true, true, function(v) { return true; });
+    test(true, true, function(v) { if(arr[1] === "2") delete arr[1]; return typeof v === "number"; });
+    test(true, true, function(v) { if(arr[arr.length - 1] !== "a") arr.push("a"); return typeof v === "number"; }, Object);
+    test(false, true, function(v) { return typeof v === "number"; }, Object);
+
+    arr = [0,null,undefined,false];
+    test(false, false, function(v) { return v; });
+    arr.push(1);
+    test(false, true, function(v) { return v; });
 });
 
 sync_test("forEach", function() {
@@ -298,9 +507,25 @@ sync_test("getOwnPropertyDescriptor", function() {
     test_own_data_prop_desc(function(){}, "prototype", true, false, false);
     test_own_data_prop_desc(Function, "prototype", false, false, false);
     test_own_data_prop_desc(String.prototype, "constructor", true, false, true);
+
+    try {
+        Object.getOwnPropertyDescriptor(null, "prototype");
+        ok(false, "expected exception with null");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "with null context threw " + n);
+    }
+    try {
+        Object.getOwnPropertyDescriptor(external.nullDisp, "prototype");
+        ok(false, "expected exception calling getOwnPropertyDescriptor(nullDisp)");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "getOwnPropertyDescriptor(nullDisp) threw " + n);
+    }
 });
 
 sync_test("defineProperty", function() {
+    var nullDisp = external.nullDisp;
     function test_accessor_prop_desc(obj, prop, orig_desc) {
         var expected_enumerable = "enumerable" in orig_desc && !!orig_desc.enumerable;
         var expected_configurable = "configurable" in orig_desc && !!orig_desc.configurable;
@@ -548,6 +773,16 @@ sync_test("defineProperty", function() {
     Object.defineProperty(obj, "funcprop", desc);
     test_accessor_prop_desc(obj, "funcprop", desc);
     ok(obj.funcprop(100) === 10, "obj.funcprop() = " + obj.funcprop(100));
+
+    expect_exception(function() {
+        Object.defineProperty(null, "funcprop", desc);
+    }, JS_E_OBJECT_EXPECTED);
+    expect_exception(function() {
+        Object.defineProperty(nullDisp, "funcprop", desc);
+    }, JS_E_OBJECT_EXPECTED);
+    expect_exception(function() {
+        Object.defineProperty(obj, "funcprop", nullDisp);
+    }, JS_E_OBJECT_EXPECTED);
 });
 
 sync_test("defineProperties", function() {
@@ -654,12 +889,38 @@ sync_test("property_definitions", function() {
 });
 
 sync_test("string_idx", function() {
-    var s = "foobar";
+    var i, s = "foobar";
     ok(s[0] === "f", "s[0] = " + s[0]);
     ok(s[5] === "r", "s[5] = " + s[5]);
     ok(s[6] === undefined, "s[6] = " + s[6]);
     ok((delete s[0]) === false, "delete s[0] returned true");
     ok((delete s[6]) === true, "delete s[6] returned false");
+    s[6] = "X";
+    ok(s[6] === undefined, "s[6] = " + s[6]);
+
+    s = new String(s);
+    test_own_data_prop_desc(s, "0", false, true, false);
+    test_own_data_prop_desc(s, "1", false, true, false);
+    ok(!s.hasOwnProperty("6"), "'6' is a property");
+
+    s[7] = "X";
+    ok(s[7] === "X", "s[7] = " + s[7]);
+    // s.hasOwnProperty("7") returns false on Win8 likely due to a bug in its js engine
+
+    Object.defineProperty(s, "8", {writable: false, enumerable: true, configurable: true, value: "Y"});
+    ok(s[8] === "Y", "s[8] = " + s[8]);
+    ok(s.hasOwnProperty("8"), "'8' not a property");
+
+    String.prototype[9] = "Z";
+    ok(s[9] === "Z", "s[9] = " + s[9]);
+    delete String.prototype[9];
+
+    i = 0;
+    for(var idx in s) {
+        ok(s[idx] === "foobar XY"[idx], "enum s[" + idx + "] = " + s[idx]);
+        i++;
+    }
+    ok(i === 8, "enum did " + i + " iterations");
 });
 
 sync_test("string_trim", function() {
@@ -805,6 +1066,13 @@ sync_test("getPrototypeOf", function() {
     ok(Object.getPrototypeOf(obj) === null, "Object.getPrototypeOf(obj) = " + Object.getPrototypeOf(obj));
 
     ok(Object.getPrototypeOf(external) === null, "Object.getPrototypeOf(non-JS obj) = " + Object.getPrototypeOf(external));
+    try {
+        Object.getOwnPropertyDescriptor(external.nullDisp);
+        ok(false, "expected exception calling getOwnPropertyDescriptor(nullDisp)");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "getOwnPropertyDescriptor(nullDisp) threw " + n);
+    }
 });
 
 sync_test("toString", function() {
@@ -930,6 +1198,14 @@ sync_test("keys", function() {
     ok(keys === "", "keys([]) = " + keys);
 
     ok(Object.keys.length === 1, "Object.keys.length = " + Object.keys.length);
+
+    try {
+        Object.keys(external.nullDisp);
+        ok(false, "expected exception calling keys(nullDisp)");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "keys(nullDisp) threw " + n);
+    }
 });
 
 sync_test("getOwnPropertyNames", function() {
@@ -954,6 +1230,14 @@ sync_test("getOwnPropertyNames", function() {
     ok(names === "length", "names = " + names);
 
     ok(Object.getOwnPropertyNames.length === 1, "Object.getOwnPropertyNames.length = " + Object.getOwnPropertyNames.length);
+
+    try {
+        Object.getOwnPropertyNames(external.nullDisp);
+        ok(false, "expected exception calling getOwnPropertyNames(nullDisp)");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "getOwnPropertyNames(nullDisp) threw " + n);
+    }
 });
 
 sync_test("reduce", function() {
@@ -1065,6 +1349,14 @@ sync_test("preventExtensions", function() {
 
     ok(Object.preventExtensions.length === 1, "Object.preventExtensions.length = " + Object.preventExtensions.length);
     ok(Object.isExtensible.length === 1, "Object.isExtensible.length = " + Object.isExtensible.length);
+
+    try {
+        Object.preventExtensions(external.nullDisp);
+        ok(false, "expected exception calling preventExtensions(nullDisp)");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "preventExtensions(nullDisp) threw " + n);
+    }
 });
 
 sync_test("freeze", function() {
@@ -1117,6 +1409,14 @@ sync_test("freeze", function() {
     }
     ok(o[0] === 1, "o[0] = " + o[0]);
     ok(o.length === 1, "o.length = " + o.length);
+
+    try {
+        Object.freeze(external.nullDisp);
+        ok(false, "expected exception freeze(nullDisp)");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "freeze(nullDisp) threw " + n);
+    }
 });
 
 sync_test("seal", function() {
@@ -1169,9 +1469,18 @@ sync_test("seal", function() {
     }
     ok(o[0] === 1, "o[0] = " + o[0]);
     ok(o.length === 1, "o.length = " + o.length);
+
+    try {
+        Object.seal(external.nullDisp);
+        ok(false, "expected exception calling seal(nullDisp)");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "seal(nullDisp) threw " + n);
+    }
 });
 
 sync_test("isFrozen", function() {
+    var nullDisp = external.nullDisp;
     ok(Object.isFrozen.length === 1, "Object.isFrozen.length = " + Object.isFrozen.length);
     ok(Object.isSealed.length === 1, "Object.isSealed.length = " + Object.isSealed.length);
 
@@ -1237,9 +1546,32 @@ sync_test("isFrozen", function() {
     ok(Object.isFrozen(o) === true, "o is not frozen");
     ok(Object.isSealed(o) === true, "o is not sealed");
     ok(Object.isExtensible(o) === false, "o is extensible");
+
+    try {
+        Object.isFrozen(nullDisp);
+        ok(false, "expected exception calling isFrozen(nullDisp)");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "isFrozen(nullDisp) threw " + n);
+    }
+    try {
+        Object.isSealed(nullDisp);
+        ok(false, "expected exception calling isSealed(nullDisp)");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "isSealed(nullDisp) threw " + n);
+    }
+    try {
+        Object.isExtensible(nullDisp);
+        ok(false, "expected exception calling isExtensible(nullDisp)");
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_OBJECT_EXPECTED, "isExtensible(nullDisp) threw " + n);
+    }
 });
 
 sync_test("builtin_context", function() {
+    var nullDisp = external.nullDisp;
     var tests = [
         [ "Array.map",              JS_E_OBJECT_EXPECTED,       function(ctx) { Array.prototype.map.call(ctx, function(a, b) {}); } ],
         [ "Array.sort",             JS_E_OBJECT_EXPECTED,       function(ctx) { Array.prototype.sort.call(ctx); } ],
@@ -1253,6 +1585,7 @@ sync_test("builtin_context", function() {
         [ "Number.toFixed",         JS_E_NUMBER_EXPECTED,       function(ctx) { Number.prototype.toFixed.call(ctx); } ],
         [ "Object.isPrototypeOf",   JS_E_OBJECT_EXPECTED,       function(ctx) { Object.prototype.isPrototypeOf.call(ctx, Object); } ],
         [ "RegExp.exec",            JS_E_REGEXP_EXPECTED,       function(ctx) { RegExp.prototype.exec.call(ctx, "foobar"); } ],
+        [ "Set.add",                JS_E_OBJECT_EXPECTED,       function(ctx) { Set.prototype.add.call(ctx, 5); } ],
         [ "String.search",          JS_E_OBJECT_EXPECTED,       function(ctx) { String.prototype.search.call(ctx, /foobar/g); } ],
         [ "String.trim",            JS_E_OBJECT_EXPECTED,       function(ctx) { String.prototype.trim.call(ctx); } ],
         [ "VBArray.dimensions",     JS_E_VBARRAY_EXPECTED,      function(ctx) { VBArray.prototype.dimensions.call(ctx); } ]
@@ -1277,6 +1610,13 @@ sync_test("builtin_context", function() {
         }catch(ex) {
             var n = ex.number >>> 0;
             ok(n === tests[i][1], tests[i][0] + " with undefined context exception code = " + n);
+        }
+        try {
+            tests[i][2](nullDisp);
+            ok(false, "expected exception calling " + tests[i][0] + " with nullDisp context");
+        }catch(ex) {
+            var n = ex.number >>> 0;
+            ok(n === tests[i][1], tests[i][0] + " with nullDisp context exception code = " + n);
         }
     }
 
@@ -1451,6 +1791,28 @@ sync_test("let scope instances", function() {
     ok(f() == 2, "f() = " + f());
 });
 
+sync_test("substituted this", function() {
+    try {
+        ((function() { var f = Number.prototype.toString; return (function() { return f(); }); })())();
+    }catch(ex) {
+        var n = ex.number >>> 0;
+        ok(n === JS_E_NUMBER_EXPECTED, "Number.toString threw " + n);
+    }
+
+    var r = ((function() { var f = Object.prototype.toString; return (function() { return f(); }); })())();
+    ok(r === "[object Undefined]", "detached scope Object.toString returned " + r);
+
+    var r = (function() { this.f = Object.prototype.toString; return this.f(); })();
+    todo_wine.
+    ok(r === "[object Window]", "Object.toString returned " + r);
+
+    var r = (function() { var f = Object.prototype.toString; return f(); })();
+    ok(r === "[object Undefined]", "Object.toString returned " + r);
+
+    var r = ((function() { return (function() { return this; }); })())();
+    ok(r === window, "detached scope this = " + r);
+});
+
 sync_test("functions scope", function() {
     function f(){ return 1; }
     function f(){ return 2; }
@@ -1561,6 +1923,34 @@ sync_test("functions scope", function() {
     func_outer(o);
     func();
     ok(ret === o, "ret != o");
+
+    func_outer = function g() {
+        var g2 = g;
+        g = 10;
+        ok(g !== 10, "g was redefined to 10");
+        g = function() {};
+        ok(g === g2, "g !== g2: " + g);
+    }
+    func_outer();
+
+    function h() {
+        h = 1;
+        ok(h === 1, "h was not redefined: " + h);
+    }
+    h();
+    ok(h === 1, "h = " + h);
+
+    function h2() { return function() { h2 = 2; }; }
+    h2()();
+    ok(h2 === 2, "h2 = " + h2);
+
+    (function e() {
+        var f = e;
+        ok(typeof(f) === "function", "f = " + f);
+        (function () { e = 1; })();
+        e = 2;
+        ok(f === e, "f != e");
+    })();
 });
 
 sync_test("console", function() {

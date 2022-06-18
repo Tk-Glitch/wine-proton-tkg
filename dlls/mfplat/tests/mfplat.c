@@ -1638,6 +1638,11 @@ static void test_attributes(void)
     ok(hr == S_OK, "Failed to get string length, hr %#lx.\n", hr);
     ok(string_length == lstrlenW(stringW), "Unexpected length %u.\n", string_length);
 
+    hr = IMFAttributes_GetAllocatedString(attributes, &DUMMY_GUID1, &string, NULL);
+    ok(hr == S_OK, "Failed to get allocated string, hr %#lx.\n", hr);
+    ok(!lstrcmpW(string, stringW), "Unexpected string %s.\n", wine_dbgstr_w(string));
+    CoTaskMemFree(string);
+
     string_length = 0xdeadbeef;
     hr = IMFAttributes_GetAllocatedString(attributes, &DUMMY_GUID1, &string, &string_length);
     ok(hr == S_OK, "Failed to get allocated string, hr %#lx.\n", hr);
@@ -1741,6 +1746,11 @@ static void test_attributes(void)
     hr = IMFAttributes_GetAllocatedBlob(attributes, &DUMMY_GUID1, &blob_buf, &size);
     ok(hr == S_OK, "Failed to get allocated blob, hr %#lx.\n", hr);
     ok(size == sizeof(blob), "Unexpected blob size %u.\n", size);
+    ok(!memcmp(blob_buf, blob, size), "Unexpected blob.\n");
+    CoTaskMemFree(blob_buf);
+
+    hr = IMFAttributes_GetAllocatedBlob(attributes, &DUMMY_GUID1, &blob_buf, NULL);
+    ok(hr == S_OK, "Failed to get allocated blob, hr %#lx.\n", hr);
     ok(!memcmp(blob_buf, blob, size), "Unexpected blob.\n");
     CoTaskMemFree(blob_buf);
 
@@ -1962,6 +1972,7 @@ static void test_MFCreateMFByteStreamOnStream(void)
     ULONG ref, size;
     HRESULT hr;
     UINT count;
+    QWORD to;
 
     if(!pMFCreateMFByteStreamOnStream)
     {
@@ -2045,10 +2056,44 @@ static void test_MFCreateMFByteStreamOnStream(void)
     ok(hr == S_OK, "Failed to get stream capabilities, hr %#lx.\n", hr);
     ok(caps == (MFBYTESTREAM_IS_READABLE | MFBYTESTREAM_IS_SEEKABLE), "Unexpected caps %#lx.\n", caps);
 
+    /* IMFByteStream maintains position separately from IStream */
+    caps = 0;
+    hr = IStream_Read(stream, &caps, sizeof(caps), &size);
+    ok(hr == S_OK, "Failed to read from raw stream, hr %#lx.\n", hr);
+    ok(size == 4, "Unexpected size.\n");
+    ok(caps == 0xffff0000, "Unexpected content.\n");
+
     caps = 0;
     hr = IMFByteStream_Read(bytestream, (BYTE *)&caps, sizeof(caps), &size);
     ok(hr == S_OK, "Failed to read from stream, hr %#lx.\n", hr);
+    ok(size == 4, "Unexpected size.\n");
     ok(caps == 0xffff0000, "Unexpected content.\n");
+
+    caps = 0;
+    hr = IStream_Read(stream, &caps, sizeof(caps), &size);
+    ok(hr == S_OK, "Failed to read from raw stream, hr %#lx.\n", hr);
+    ok(size == 0, "Unexpected size.\n");
+    ok(caps == 0, "Unexpected content.\n");
+
+    hr = IMFByteStream_Seek(bytestream, msoBegin, 0, 0, &to);
+    ok(hr == S_OK, "Failed to read from stream, hr %#lx.\n", hr);
+
+    hr = IStream_Read(stream, &caps, sizeof(caps), &size);
+    ok(hr == S_OK, "Failed to read from raw stream, hr %#lx.\n", hr);
+    ok(size == 0, "Unexpected size.\n");
+    ok(caps == 0, "Unexpected content.\n");
+
+    caps = 0;
+    hr = IMFByteStream_Read(bytestream, (BYTE *)&caps, sizeof(caps), &size);
+    ok(hr == S_OK, "Failed to read from stream, hr %#lx.\n", hr);
+    ok(size == 4, "Unexpected size.\n");
+    ok(caps == 0xffff0000, "Unexpected content.\n");
+
+    caps = 0;
+    hr = IMFByteStream_Read(bytestream, (BYTE *)&caps, sizeof(caps), &size);
+    ok(hr == S_OK, "Failed to read from stream, hr %#lx.\n", hr);
+    ok(size == 0, "Unexpected size.\n");
+    ok(caps == 0, "Unexpected content.\n");
 
     IMFAttributes_Release(attributes);
     IMFByteStream_Release(bytestream);
@@ -6057,18 +6102,21 @@ static void test_MFCreateMediaBufferFromMediaType(void)
         unsigned int buffer_length;
     } audio_tests[] =
     {
-        { 0,  0,  0,  4,  0, 20 },
-        { 0, 16,  0,  4,  0, 20 },
-        { 0,  0, 32,  4,  0, 36 },
-        { 0, 64, 32,  4,  0, 64 },
-        { 1,  0,  0,  4, 16, 36 },
-        { 2,  0,  0,  4, 16, 52 },
+        { 0,  0,   0,  4,  0, 20 },
+        { 0, 16,   0,  4,  0, 20 },
+        { 0,  0,  32,  4,  0, 36 },
+        { 0, 64,  32,  4,  0, 64 },
+        { 1,  0,   0,  4, 16, 36 },
+        { 2,  0,   0,  4, 16, 52 },
+        { 2,  0,  64,  4, 16, 68 },
+        { 2,  0, 128,  4, 16,132 },
     };
+    IMFMediaType *media_type, *media_type2;
+    unsigned int i, alignment;
     IMFMediaBuffer *buffer;
-    DWORD length;
+    DWORD length, max;
+    BYTE *data;
     HRESULT hr;
-    IMFMediaType *media_type;
-    unsigned int i;
 
     if (!pMFCreateMediaBufferFromMediaType)
     {
@@ -6082,8 +6130,14 @@ static void test_MFCreateMediaBufferFromMediaType(void)
     hr = MFCreateMediaType(&media_type);
     ok(hr == S_OK, "Failed to create media type, hr %#lx.\n", hr);
 
+    hr = MFCreateMediaType(&media_type2);
+    ok(hr == S_OK, "Failed to create media type, hr %#lx.\n", hr);
+
     hr = IMFMediaType_SetGUID(media_type, &MF_MT_MAJOR_TYPE, &MFMediaType_Audio);
     ok(hr == S_OK, "Failed to set attribute, hr %#lx.\n", hr);
+
+    hr = IMFMediaType_CopyAllItems(media_type, (IMFAttributes *)media_type2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     for (i = 0; i < ARRAY_SIZE(audio_tests); ++i)
     {
@@ -6107,10 +6161,37 @@ static void test_MFCreateMediaBufferFromMediaType(void)
         ok(hr == S_OK, "Failed to get length, hr %#lx.\n", hr);
         ok(ptr->buffer_length == length, "%d: unexpected buffer length %lu, expected %u.\n", i, length, ptr->buffer_length);
 
+        alignment = ptr->min_alignment ? ptr->min_alignment - 1 : MF_16_BYTE_ALIGNMENT;
+        hr = IMFMediaBuffer_Lock(buffer, &data, &max, &length);
+        ok(hr == S_OK, "Failed to lock, hr %#lx.\n", hr);
+        ok(ptr->buffer_length == max && !length, "Unexpected length.\n");
+        ok(!((uintptr_t)data & alignment), "%u: data at %p is misaligned.\n", i, data);
+        hr = IMFMediaBuffer_Unlock(buffer);
+        ok(hr == S_OK, "Failed to unlock, hr %#lx.\n", hr);
+
+        IMFMediaBuffer_Release(buffer);
+
+        /* Only major type is set. */
+        hr = pMFCreateMediaBufferFromMediaType(media_type2, ptr->duration * 10000000, ptr->min_length,
+                ptr->min_alignment, &buffer);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        hr = IMFMediaBuffer_GetMaxLength(buffer, &length);
+        ok(hr == S_OK, "Failed to get length, hr %#lx.\n", hr);
+        ok(ptr->min_length == length, "%u: unexpected buffer length %lu, expected %u.\n", i, length, ptr->min_length);
+
+        hr = IMFMediaBuffer_Lock(buffer, &data, &max, &length);
+        ok(hr == S_OK, "Failed to lock, hr %#lx.\n", hr);
+        ok(ptr->min_length == max && !length, "Unexpected length.\n");
+        ok(!((uintptr_t)data & alignment), "%u: data at %p is misaligned.\n", i, data);
+        hr = IMFMediaBuffer_Unlock(buffer);
+        ok(hr == S_OK, "Failed to unlock, hr %#lx.\n", hr);
+
         IMFMediaBuffer_Release(buffer);
     }
 
     IMFMediaType_Release(media_type);
+    IMFMediaType_Release(media_type2);
 }
 
 static void validate_media_type(IMFMediaType *mediatype, const WAVEFORMATEX *format)

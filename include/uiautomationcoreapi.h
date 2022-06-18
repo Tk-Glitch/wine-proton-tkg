@@ -72,7 +72,7 @@ HRESULT WINAPI UiaGetReservedNotSupportedValue(IUnknown **value);
 int WINAPI UiaLookupId(enum AutomationIdentifierType type, const GUID *guid);
 BOOL WINAPI UiaPatternRelease(HUIAPATTERNOBJECT hobj);
 HRESULT WINAPI UiaRaiseAutomationEvent(IRawElementProviderSimple *provider, EVENTID id);
-HRESULT WINAPI UiaRaiseAutomationPropertyChangedEvent(IRawElementProviderSimple *provider, PROPERTYID id, VARIANT old, VARIANT new);
+HRESULT WINAPI UiaRaiseAutomationPropertyChangedEvent(IRawElementProviderSimple *, PROPERTYID, VARIANT, VARIANT);
 HRESULT WINAPI UiaRaiseAsyncContentLoadedEvent(IRawElementProviderSimple *provider,
                                                 enum AsyncContentLoadedState async_content_loaded_state, double percent_complete);
 HRESULT WINAPI UiaRaiseTextEditTextChangedEvent(IRawElementProviderSimple *provider, enum TextEditChangeType text_edit_change_type,

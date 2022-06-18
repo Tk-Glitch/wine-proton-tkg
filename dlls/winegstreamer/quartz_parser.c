@@ -111,50 +111,6 @@ static bool amt_from_wg_format_audio(AM_MEDIA_TYPE *mt, const struct wg_format *
     case WG_AUDIO_FORMAT_UNKNOWN:
         return false;
 
-    case WG_AUDIO_FORMAT_MPEG1_LAYER1:
-    case WG_AUDIO_FORMAT_MPEG1_LAYER2:
-    {
-        MPEG1WAVEFORMAT *wave_format;
-
-        if (!(wave_format = CoTaskMemAlloc(sizeof(*wave_format))))
-            return false;
-        memset(wave_format, 0, sizeof(*wave_format));
-
-        mt->subtype = MEDIASUBTYPE_MPEG1AudioPayload;
-        mt->cbFormat = sizeof(*wave_format);
-        mt->pbFormat = (BYTE *)wave_format;
-        wave_format->wfx.wFormatTag = WAVE_FORMAT_MPEG;
-        wave_format->wfx.nChannels = format->u.audio.channels;
-        wave_format->wfx.nSamplesPerSec = format->u.audio.rate;
-        wave_format->wfx.cbSize = sizeof(*wave_format) - sizeof(WAVEFORMATEX);
-        wave_format->fwHeadLayer = (format->u.audio.format == WG_AUDIO_FORMAT_MPEG1_LAYER1 ? 1 : 2);
-        return true;
-    }
-
-    case WG_AUDIO_FORMAT_MPEG1_LAYER3:
-    {
-        MPEGLAYER3WAVEFORMAT *wave_format;
-
-        if (!(wave_format = CoTaskMemAlloc(sizeof(*wave_format))))
-            return false;
-        memset(wave_format, 0, sizeof(*wave_format));
-
-        mt->subtype = MEDIASUBTYPE_MP3;
-        mt->cbFormat = sizeof(*wave_format);
-        mt->pbFormat = (BYTE *)wave_format;
-        wave_format->wfx.wFormatTag = WAVE_FORMAT_MPEGLAYER3;
-        wave_format->wfx.nChannels = format->u.audio.channels;
-        wave_format->wfx.nSamplesPerSec = format->u.audio.rate;
-        wave_format->wfx.cbSize = sizeof(*wave_format) - sizeof(WAVEFORMATEX);
-        /* FIXME: We can't get most of the MPEG data from the caps. We may have
-         * to manually parse the header. */
-        wave_format->wID = MPEGLAYER3_ID_MPEG;
-        wave_format->fdwFlags = MPEGLAYER3_FLAG_PADDING_ON;
-        wave_format->nFramesPerBlock = 1;
-        wave_format->nCodecDelay = 1393;
-        return true;
-    }
-
     case WG_AUDIO_FORMAT_U8:
     case WG_AUDIO_FORMAT_S16LE:
     case WG_AUDIO_FORMAT_S24LE:
@@ -238,6 +194,62 @@ static bool amt_from_wg_format_audio(AM_MEDIA_TYPE *mt, const struct wg_format *
     return false;
 }
 
+static bool amt_from_wg_format_mpeg1_audio(AM_MEDIA_TYPE *mt, const struct wg_format *format)
+{
+    mt->majortype = MEDIATYPE_Audio;
+    mt->formattype = FORMAT_WaveFormatEx;
+
+    switch (format->u.mpeg1_audio.layer)
+    {
+        case 1:
+        case 2:
+        {
+            MPEG1WAVEFORMAT *wave_format;
+
+            if (!(wave_format = CoTaskMemAlloc(sizeof(*wave_format))))
+                return false;
+            memset(wave_format, 0, sizeof(*wave_format));
+
+            mt->subtype = MEDIASUBTYPE_MPEG1AudioPayload;
+            mt->cbFormat = sizeof(*wave_format);
+            mt->pbFormat = (BYTE *)wave_format;
+            wave_format->wfx.wFormatTag = WAVE_FORMAT_MPEG;
+            wave_format->wfx.nChannels = format->u.mpeg1_audio.channels;
+            wave_format->wfx.nSamplesPerSec = format->u.mpeg1_audio.rate;
+            wave_format->wfx.cbSize = sizeof(*wave_format) - sizeof(WAVEFORMATEX);
+            wave_format->fwHeadLayer = format->u.mpeg1_audio.layer;
+            return true;
+        }
+
+        case 3:
+        {
+            MPEGLAYER3WAVEFORMAT *wave_format;
+
+            if (!(wave_format = CoTaskMemAlloc(sizeof(*wave_format))))
+                return false;
+            memset(wave_format, 0, sizeof(*wave_format));
+
+            mt->subtype = MEDIASUBTYPE_MP3;
+            mt->cbFormat = sizeof(*wave_format);
+            mt->pbFormat = (BYTE *)wave_format;
+            wave_format->wfx.wFormatTag = WAVE_FORMAT_MPEGLAYER3;
+            wave_format->wfx.nChannels = format->u.mpeg1_audio.channels;
+            wave_format->wfx.nSamplesPerSec = format->u.mpeg1_audio.rate;
+            wave_format->wfx.cbSize = sizeof(*wave_format) - sizeof(WAVEFORMATEX);
+            /* FIXME: We can't get most of the MPEG data from the caps. We may have
+             * to manually parse the header. */
+            wave_format->wID = MPEGLAYER3_ID_MPEG;
+            wave_format->fdwFlags = MPEGLAYER3_FLAG_PADDING_ON;
+            wave_format->nFramesPerBlock = 1;
+            wave_format->nCodecDelay = 1393;
+            return true;
+        }
+    }
+
+    assert(0);
+    return false;
+}
+
 #define ALIGN(n, alignment) (((n) + (alignment) - 1) & ~((alignment) - 1))
 
 unsigned int wg_format_get_max_size(const struct wg_format *format)
@@ -312,21 +324,26 @@ unsigned int wg_format_get_max_size(const struct wg_format *format)
                 case WG_AUDIO_FORMAT_F64LE:
                     return rate * channels * 8;
 
-                case WG_AUDIO_FORMAT_MPEG1_LAYER1:
-                    return 56000;
-
-                case WG_AUDIO_FORMAT_MPEG1_LAYER2:
-                    return 48000;
-
-                case WG_AUDIO_FORMAT_MPEG1_LAYER3:
-                    return 40000;
-
                 case WG_AUDIO_FORMAT_UNKNOWN:
                     FIXME("Cannot guess maximum sample size for unknown audio format.\n");
                     return 0;
             }
             break;
         }
+
+        case WG_MAJOR_TYPE_MPEG1_AUDIO:
+            switch (format->u.mpeg1_audio.layer)
+            {
+            case 1:
+                return 56000;
+
+            case 2:
+                return 48000;
+
+            case 3:
+                return 40000;
+            }
+            break;
 
         case WG_MAJOR_TYPE_H264:
         case WG_MAJOR_TYPE_WMA:
@@ -431,6 +448,9 @@ bool amt_from_wg_format(AM_MEDIA_TYPE *mt, const struct wg_format *format, bool 
     case WG_MAJOR_TYPE_UNKNOWN:
         return false;
 
+    case WG_MAJOR_TYPE_MPEG1_AUDIO:
+        return amt_from_wg_format_mpeg1_audio(mt, format);
+
     case WG_MAJOR_TYPE_AUDIO:
         return amt_from_wg_format_audio(mt, format);
 
@@ -526,17 +546,10 @@ static bool amt_to_wg_format_audio_mpeg1(const AM_MEDIA_TYPE *mt, struct wg_form
         return false;
     }
 
-    format->major_type = WG_MAJOR_TYPE_AUDIO;
-    format->u.audio.channels = audio_format->wfx.nChannels;
-    format->u.audio.rate = audio_format->wfx.nSamplesPerSec;
-    if (audio_format->fwHeadLayer == 1)
-        format->u.audio.format = WG_AUDIO_FORMAT_MPEG1_LAYER1;
-    else if (audio_format->fwHeadLayer == 2)
-        format->u.audio.format = WG_AUDIO_FORMAT_MPEG1_LAYER2;
-    else if (audio_format->fwHeadLayer == 3)
-        format->u.audio.format = WG_AUDIO_FORMAT_MPEG1_LAYER3;
-    else
-        return false;
+    format->major_type = WG_MAJOR_TYPE_MPEG1_AUDIO;
+    format->u.mpeg1_audio.channels = audio_format->wfx.nChannels;
+    format->u.mpeg1_audio.rate = audio_format->wfx.nSamplesPerSec;
+    format->u.mpeg1_audio.layer = audio_format->fwHeadLayer;
     return true;
 }
 
@@ -555,10 +568,10 @@ static bool amt_to_wg_format_audio_mpeg1_layer3(const AM_MEDIA_TYPE *mt, struct 
         return false;
     }
 
-    format->major_type = WG_MAJOR_TYPE_AUDIO;
-    format->u.audio.channels = audio_format->wfx.nChannels;
-    format->u.audio.rate = audio_format->wfx.nSamplesPerSec;
-    format->u.audio.format = WG_AUDIO_FORMAT_MPEG1_LAYER3;
+    format->major_type = WG_MAJOR_TYPE_MPEG1_AUDIO;
+    format->u.mpeg1_audio.channels = audio_format->wfx.nChannels;
+    format->u.mpeg1_audio.rate = audio_format->wfx.nSamplesPerSec;
+    format->u.mpeg1_audio.layer = 3;
     return true;
 }
 
@@ -960,6 +973,24 @@ static HRESULT parser_init_stream(struct strmbase_filter *iface)
         return S_OK;
 
     filter->streaming = true;
+
+    for (i = 0; i < filter->source_count; ++i)
+    {
+        struct parser_source *source = filter->sources[i];
+        struct wg_format format;
+        bool ret;
+
+        if (source->pin.pin.peer)
+        {
+            ret = amt_to_wg_format(&source->pin.pin.mt, &format);
+            assert(ret);
+            wg_parser_stream_enable(source->wg_stream, &format);
+        }
+        else
+        {
+            wg_parser_stream_disable(source->wg_stream);
+        }
+    }
 
     /* DirectShow retains the old seek positions, but resets to them every time
      * it transitions from stopped -> paused. */
@@ -1529,8 +1560,6 @@ static HRESULT WINAPI GSTOutPin_DecideBufferSize(struct strmbase_source *iface,
     struct parser_source *pin = impl_source_from_IPin(&iface->pin.IPin_iface);
     unsigned int buffer_size = 16384;
     ALLOCATOR_PROPERTIES ret_props;
-    struct wg_format format;
-    bool ret;
 
     if (IsEqualGUID(&pin->pin.pin.mt.formattype, &FORMAT_VideoInfo))
     {
@@ -1545,10 +1574,6 @@ static HRESULT WINAPI GSTOutPin_DecideBufferSize(struct strmbase_source *iface,
         buffer_size = format->nAvgBytesPerSec;
     }
 
-    ret = amt_to_wg_format(&pin->pin.pin.mt, &format);
-    assert(ret);
-    wg_parser_stream_enable(pin->wg_stream, &format);
-
     /* We do need to drop any buffers that might have been sent with the old
      * caps, but this will be handled in parser_init_stream(). */
 
@@ -1556,13 +1581,6 @@ static HRESULT WINAPI GSTOutPin_DecideBufferSize(struct strmbase_source *iface,
     props->cbBuffer = max(props->cbBuffer, buffer_size);
     props->cbAlign = max(props->cbAlign, 1);
     return IMemAllocator_SetProperties(allocator, props, &ret_props);
-}
-
-static void source_disconnect(struct strmbase_source *iface)
-{
-    struct parser_source *pin = impl_source_from_IPin(&iface->pin.IPin_iface);
-
-    wg_parser_stream_disable(pin->wg_stream);
 }
 
 static void free_source_pin(struct parser_source *pin)
@@ -1590,7 +1608,6 @@ static const struct strmbase_source_ops source_ops =
     .pfnAttemptConnection = BaseOutputPinImpl_AttemptConnection,
     .pfnDecideAllocator = BaseOutputPinImpl_DecideAllocator,
     .pfnDecideBufferSize = GSTOutPin_DecideBufferSize,
-    .source_disconnect = source_disconnect,
 };
 
 static struct parser_source *create_pin(struct parser *filter,
@@ -1629,9 +1646,6 @@ static HRESULT GST_RemoveOutputPins(struct parser *This)
     if (!This->sink_connected)
         return S_OK;
 
-    /* Disconnecting source pins triggers a call to wg_parser_stream_disable().
-     * The stream pointers are no longer valid after wg_parser_disconnect(), so
-     * make sure we disable the streams first. */
     for (i = 0; i < This->source_count; ++i)
     {
         if (This->sources[i])
