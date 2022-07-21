@@ -32,6 +32,7 @@ static inline struct d3d_texture1d *impl_from_ID3D11Texture1D(ID3D11Texture1D *i
 static HRESULT STDMETHODCALLTYPE d3d11_texture1d_QueryInterface(ID3D11Texture1D *iface, REFIID iid, void **out)
 {
     struct d3d_texture1d *texture = impl_from_ID3D11Texture1D(iface);
+    HRESULT hr;
 
     TRACE("iface %p, iid %s, out %p.\n", iface, debugstr_guid(iid), out);
 
@@ -54,16 +55,15 @@ static HRESULT STDMETHODCALLTYPE d3d11_texture1d_QueryInterface(ID3D11Texture1D 
         return S_OK;
     }
 
-    if (texture->dxgi_resource)
+    TRACE("Forwarding to dxgi resource.\n");
+
+    if (FAILED(hr = IUnknown_QueryInterface(texture->dxgi_resource, iid, out)))
     {
-        TRACE("Forwarding to dxgi resource.\n");
-        return IUnknown_QueryInterface(texture->dxgi_resource, iid, out);
+        WARN("%s not implemented, returning %#lx.\n", debugstr_guid(iid), hr);
+        *out = NULL;
     }
 
-    WARN("%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid(iid));
-
-    *out = NULL;
-    return E_NOINTERFACE;
+    return hr;
 }
 
 static ULONG STDMETHODCALLTYPE d3d11_texture1d_AddRef(ID3D11Texture1D *iface)
@@ -520,6 +520,7 @@ static HRESULT STDMETHODCALLTYPE d3d11_texture2d_QueryInterface(IWineD3D11Textur
         REFIID riid, void **object)
 {
     struct d3d_texture2d *texture = impl_from_IWineD3D11Texture2D(iface);
+    HRESULT hr;
 
     TRACE("iface %p, riid %s, object %p.\n", iface, debugstr_guid(riid), object);
 
@@ -542,16 +543,15 @@ static HRESULT STDMETHODCALLTYPE d3d11_texture2d_QueryInterface(IWineD3D11Textur
         return S_OK;
     }
 
-    if (texture->dxgi_resource)
+    TRACE("Forwarding to dxgi resource.\n");
+
+    if (FAILED(hr = IUnknown_QueryInterface(texture->dxgi_resource, riid, object)))
     {
-        TRACE("Forwarding to dxgi resource.\n");
-        return IUnknown_QueryInterface(texture->dxgi_resource, riid, object);
+        WARN("%s not implemented, returning %#lx.\n", debugstr_guid(riid), hr);
+        *object = NULL;
     }
 
-    WARN("%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid(riid));
-
-    *object = NULL;
-    return E_NOINTERFACE;
+    return hr;
 }
 
 static ULONG STDMETHODCALLTYPE d3d11_texture2d_AddRef(IWineD3D11Texture2D *iface)

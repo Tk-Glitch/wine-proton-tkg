@@ -2433,6 +2433,12 @@ static void dump_set_registry_notification_request( const struct set_registry_no
     fprintf( stderr, ", filter=%08x", req->filter );
 }
 
+static void dump_rename_key_request( const struct rename_key_request *req )
+{
+    fprintf( stderr, " hkey=%04x", req->hkey );
+    dump_varargs_unicode_str( ", name=", cur_size );
+}
+
 static void dump_create_timer_request( const struct create_timer_request *req )
 {
     fprintf( stderr, " access=%08x", req->access );
@@ -4712,6 +4718,7 @@ static const dump_func req_dumpers[REQ_NB_REQUESTS] = {
     (dump_func)dump_unload_registry_request,
     (dump_func)dump_save_registry_request,
     (dump_func)dump_set_registry_notification_request,
+    (dump_func)dump_rename_key_request,
     (dump_func)dump_create_timer_request,
     (dump_func)dump_open_timer_request,
     (dump_func)dump_set_timer_request,
@@ -4996,6 +5003,7 @@ static const dump_func reply_dumpers[REQ_NB_REQUESTS] = {
     NULL,
     (dump_func)dump_get_key_value_reply,
     (dump_func)dump_enum_key_value_reply,
+    NULL,
     NULL,
     NULL,
     NULL,
@@ -5290,6 +5298,7 @@ static const char * const req_names[REQ_NB_REQUESTS] = {
     "unload_registry",
     "save_registry",
     "set_registry_notification",
+    "rename_key",
     "create_timer",
     "open_timer",
     "set_timer",
