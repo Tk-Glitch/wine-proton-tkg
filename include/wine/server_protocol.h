@@ -2198,7 +2198,7 @@ struct create_key_reply
 {
     struct reply_header __header;
     obj_handle_t hkey;
-    int          created;
+    char __pad_12[4];
 };
 
 
@@ -6528,7 +6528,7 @@ union generic_reply
 
 /* ### protocol_version begin ### */
 
-#define SERVER_PROTOCOL_VERSION 754
+#define SERVER_PROTOCOL_VERSION 755
 
 /* ### protocol_version end ### */
 
