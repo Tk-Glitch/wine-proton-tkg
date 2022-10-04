@@ -1,9 +1,9 @@
-# Last proton_dist configuration - mar. 04 oct. 2022 15:36:10 CEST :
+# Last proton_dist configuration - mar. 04 oct. 2022 15:37:08 CEST :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 7.16.r0.ga4930f003f4
-Using wine-staging patchset (version 7.16.r0.gaa2eb6ee)
+Wine (plain) version: 7.17.r0.gef13dcf0b98
+Using wine-staging patchset (version 7.17.r0.g6d46b1e1)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
@@ -11,6 +11,7 @@ Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
 Done applying backports hotfixes (if any) - list available in prepare.log
 Done applying reverting hotfixes (if any) - list available in prepare.log
 
+Applied hotfix win32u_reverts36.earlystagingpatch
 Applied hotfix win32u_reverts35.earlystagingpatch
 Applied hotfix win32u_reverts34.earlystagingpatch
 Applied hotfix win32u_reverts33.earlystagingpatch
@@ -56,7 +57,7 @@ Applied hotfix fshack-84bed15-a3ebf88-monolith-reverts-2.myearlypatch
 steam.patch -- ( Applied steam crossover hack )
 CSMT-toggle.patch -- ( Applied CSMT toggle logic patch )
 
-Staging overrides, if any: -W ntdll-Serial_Port_Detection -W user32-alttab-focus -W stdole32.tlb-SLTG_Typelib -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W user32-alttab-focus -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW -W winex11-MWM_Decorations -W winex11-key_translation
+Staging overrides, if any: -W user32-alttab-focus -W stdole32.tlb-SLTG_Typelib -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W user32-alttab-focus -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW -W winex11-MWM_Decorations -W winex11-key_translation
 
 use_clock_monotonic.patch -- ( Applied clock_monotonic patch )
 assettocorsa_hud_perf-proton.patch -- ( Applied Assetto Corsa HUD performance fix (proton edition) )
