@@ -1,9 +1,9 @@
-# Last proton_dist configuration - mar. 04 oct. 2022 15:37:08 CEST :
+# Last proton_dist configuration - mar. 04 oct. 2022 15:38:07 CEST :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 7.17.r0.gef13dcf0b98
-Using wine-staging patchset (version 7.17.r0.g6d46b1e1)
+Wine (plain) version: 7.18.r0.gad26f04f69a
+Using wine-staging patchset (version 7.18.r0.gfe476e72)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
@@ -11,6 +11,8 @@ Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
 Done applying backports hotfixes (if any) - list available in prepare.log
 Done applying reverting hotfixes (if any) - list available in prepare.log
 
+Applied hotfix win32u_reverts38.earlystagingpatch
+Applied hotfix win32u_reverts37.earlystagingpatch
 Applied hotfix win32u_reverts36.earlystagingpatch
 Applied hotfix win32u_reverts35.earlystagingpatch
 Applied hotfix win32u_reverts34.earlystagingpatch
@@ -50,14 +52,13 @@ Applied hotfix win32u_reverts7.earlystagingpatch
 Applied hotfix commit-de2f0fe.earlystagingpatch
 Applied hotfix win32u_reverts6.earlystagingpatch
 Applied reverting hotfix win32u_reverts5-2.mystagingrevert
-Applied hotfix commit-155e98e-2.mystagingpatch
 Applied hotfix protonify_stg_syscall_emu-009.mystagingpatch
 Applied reverting hotfix d4259ac8e93.myearlyrevert
 Applied hotfix fshack-84bed15-a3ebf88-monolith-reverts-2.myearlypatch
 steam.patch -- ( Applied steam crossover hack )
 CSMT-toggle.patch -- ( Applied CSMT toggle logic patch )
 
-Staging overrides, if any: -W user32-alttab-focus -W stdole32.tlb-SLTG_Typelib -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W user32-alttab-focus -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW -W winex11-MWM_Decorations -W winex11-key_translation
+Staging overrides, if any: -W user32-alttab-focus -W stdole32.tlb-SLTG_Typelib -W user32-alttab-focus -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW -W winex11-MWM_Decorations -W winex11-key_translation
 
 use_clock_monotonic.patch -- ( Applied clock_monotonic patch )
 assettocorsa_hud_perf-proton.patch -- ( Applied Assetto Corsa HUD performance fix (proton edition) )
@@ -76,7 +77,7 @@ proton-tabtip.patch -- ( Enable Proton's SteamDeck additions )
 rdr2.patch -- ( Enable Proton's RDR2 fixes from Paul Gofman )
 quake_champions_fix.patch -- ( Enable Proton's Quake Champions fixes from Paul Gofman )
 proton-cpu-topology-overrides.patch -- ( Enable Proton's CPU topology override support )
-proton-vr-fshack-7d20333.patch -- ( Enable Proton vr-related wined3d additions )
+proton-vr-fshack.patch -- ( Enable Proton vr-related wined3d additions )
 msvcrt_nativebuiltin.patch -- ( Enforce msvcrt Dlls to native then builtin (from Proton) )
 josh-flat-theme.patch -- ( Add Josh's better-theme )
 proton-win10-default-staging.patch -- ( Enforce win10 as default wine version (staging) )

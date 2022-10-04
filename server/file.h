@@ -169,6 +169,10 @@ extern void file_set_error(void);
 extern struct security_descriptor *mode_to_sd( mode_t mode, const struct sid *user, const struct sid *group );
 extern mode_t sd_to_mode( const struct security_descriptor *sd, const struct sid *owner );
 extern int is_file_executable( const char *name );
+extern int set_file_sd( struct object *obj, struct fd *fd, mode_t *mode, uid_t *uid,
+                        const struct security_descriptor *sd, unsigned int set_info );
+extern struct security_descriptor *get_file_sd( struct object *obj, struct fd *fd, mode_t *mode,
+                                                uid_t *uid );
 
 /* file mapping functions */
 
@@ -204,7 +208,8 @@ extern struct object *create_unix_device( struct object *root, const struct unic
 
 extern void do_change_notify( int unix_fd );
 extern void sigio_callback(void);
-extern struct object *create_dir_obj( struct fd *fd, unsigned int access, mode_t mode );
+extern struct object *create_dir_obj( struct fd *fd, unsigned int access, mode_t mode,
+                                      const struct security_descriptor *sd );
 extern struct dir *get_dir_obj( struct process *process, obj_handle_t handle, unsigned int access );
 
 /* completion */

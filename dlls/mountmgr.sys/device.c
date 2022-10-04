@@ -197,6 +197,36 @@ static void get_filesystem_serial( struct volume *volume )
     volume->serial = strtoul( buffer, NULL, 16 );
 }
 
+/* get the flags for the volume by looking at the type of underlying filesystem */
+static DWORD get_filesystem_flags( struct volume *volume )
+{
+    char fstypename[256];
+    ULONG size = sizeof(fstypename);
+    struct get_volume_filesystem_params params = { volume->device->unix_mount, fstypename, &size };
+
+    if (!volume->device->unix_mount) return 0;
+    if (MOUNTMGR_CALL( get_volume_filesystem, &params )) return 0;
+
+    if (!strcmp("apfs", fstypename) ||
+        !strcmp("nfs", fstypename) ||
+        !strcmp("cifs", fstypename) ||
+        !strcmp("ncpfs", fstypename) ||
+        !strcmp("tmpfs", fstypename) ||
+        !strcmp("cramfs", fstypename) ||
+        !strcmp("devfs", fstypename) ||
+        !strcmp("procfs", fstypename) ||
+        !strcmp("ext2", fstypename) ||
+        !strcmp("ext3", fstypename) ||
+        !strcmp("ext4", fstypename) ||
+        !strcmp("hfs", fstypename) ||
+        !strcmp("hpfs", fstypename) ||
+        !strcmp("ntfs", fstypename))
+    {
+        return FILE_SUPPORTS_REPARSE_POINTS;
+    }
+    return 0;
+}
+
 
 /******************************************************************
  *		VOLUME_FindCdRomDataBestVoldesc
@@ -1716,7 +1746,8 @@ static NTSTATUS WINAPI harddisk_query_volume( DEVICE_OBJECT *device, IRP *irp )
             break;
         default:
             fsname = L"NTFS";
-            info->FileSystemAttributes = FILE_CASE_PRESERVED_NAMES | FILE_PERSISTENT_ACLS;
+            info->FileSystemAttributes = FILE_CASE_PRESERVED_NAMES | FILE_PERSISTENT_ACLS
+                                         | get_filesystem_flags( volume );
             info->MaximumComponentNameLength = 255;
             break;
         }

@@ -414,6 +414,7 @@ static HRESULT WINAPI IXACT3SoundBankImpl_Prepare(IXACT3SoundBank *iface,
     XACT3SoundBankImpl *This = impl_from_IXACT3SoundBank(iface);
     XACT3CueImpl *cue;
     FACTCue *fcue;
+
     UINT ret;
     HRESULT hr;
 

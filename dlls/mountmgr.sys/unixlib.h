@@ -107,6 +107,13 @@ struct read_volume_file_params
     ULONG *size;
 };
 
+struct get_volume_filesystem_params
+{
+    const char *volume;
+    void *fstypename;
+    ULONG *size;
+};
+
 struct match_unixdev_params
 {
     const char *device;
@@ -173,6 +180,7 @@ enum mountmgr_funcs
     unix_write_credential,
     unix_delete_credential,
     unix_enumerate_credentials,
+    unix_get_volume_filesystem,
 };
 
 extern unixlib_handle_t mountmgr_handle;

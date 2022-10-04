@@ -977,7 +977,8 @@ then
         WINE_TRY_CROSSCFLAGS([-Wabsolute-value])
 
         case $host_cpu in
-          *i[[3456789]]86*) WINE_TRY_CROSSCFLAGS([-fno-omit-frame-pointer]) ;;
+          *i[[3456789]]86*) WINE_TRY_CROSSCFLAGS([-fno-omit-frame-pointer])
+                            WINE_TRY_CROSSCFLAGS([-Wl,--disable-stdcall-fixup],[CROSSLDFLAGS="$CROSSLDFLAGS -Wl,--disable-stdcall-fixup"]) ;;
           x86_64) WINE_TRY_CROSSCFLAGS([-Wno-format])
                   WINE_TRY_CROSSCFLAGS([-Wformat-overflow])
                   WINE_TRY_CROSSCFLAGS([-Wnonnull])
@@ -2062,6 +2063,8 @@ AC_CHECK_FUNCS(\
 	prctl \
 	proc_pidinfo \
 	sched_yield \
+	renameat \
+	renameat2 \
 	setproctitle \
 	setprogname \
 	sigprocmask \
@@ -2507,6 +2510,7 @@ WINE_CONFIG_MAKEFILE(dlls/cryptext)
 WINE_CONFIG_MAKEFILE(dlls/cryptext/tests)
 WINE_CONFIG_MAKEFILE(dlls/cryptnet)
 WINE_CONFIG_MAKEFILE(dlls/cryptnet/tests)
+WINE_CONFIG_MAKEFILE(dlls/cryptowinrt)
 WINE_CONFIG_MAKEFILE(dlls/cryptsp)
 WINE_CONFIG_MAKEFILE(dlls/cryptui)
 WINE_CONFIG_MAKEFILE(dlls/cryptui/tests)
@@ -2908,7 +2912,9 @@ WINE_CONFIG_MAKEFILE(dlls/msvcr120)
 WINE_CONFIG_MAKEFILE(dlls/msvcr120/tests)
 WINE_CONFIG_MAKEFILE(dlls/msvcr120_app)
 WINE_CONFIG_MAKEFILE(dlls/msvcr70)
+WINE_CONFIG_MAKEFILE(dlls/msvcr70/tests)
 WINE_CONFIG_MAKEFILE(dlls/msvcr71)
+WINE_CONFIG_MAKEFILE(dlls/msvcr71/tests)
 WINE_CONFIG_MAKEFILE(dlls/msvcr80)
 WINE_CONFIG_MAKEFILE(dlls/msvcr80/tests)
 WINE_CONFIG_MAKEFILE(dlls/msvcr90)
@@ -3127,6 +3133,8 @@ WINE_CONFIG_MAKEFILE(dlls/taskschd/tests)
 WINE_CONFIG_MAKEFILE(dlls/tbs)
 WINE_CONFIG_MAKEFILE(dlls/tdh)
 WINE_CONFIG_MAKEFILE(dlls/tdi.sys)
+WINE_CONFIG_MAKEFILE(dlls/threadpoolwinrt)
+WINE_CONFIG_MAKEFILE(dlls/threadpoolwinrt/tests)
 WINE_CONFIG_MAKEFILE(dlls/toolhelp.dll16,enable_win16)
 WINE_CONFIG_MAKEFILE(dlls/traffic)
 WINE_CONFIG_MAKEFILE(dlls/twain.dll16,enable_win16)
@@ -3211,6 +3219,7 @@ WINE_CONFIG_MAKEFILE(dlls/win87em.dll16,enable_win16)
 WINE_CONFIG_MAKEFILE(dlls/winaspi.dll16,enable_win16)
 WINE_CONFIG_MAKEFILE(dlls/windebug.dll16,enable_win16)
 WINE_CONFIG_MAKEFILE(dlls/windows.devices.enumeration)
+WINE_CONFIG_MAKEFILE(dlls/windows.devices.enumeration/tests)
 WINE_CONFIG_MAKEFILE(dlls/windows.gaming.input)
 WINE_CONFIG_MAKEFILE(dlls/windows.gaming.input/tests)
 WINE_CONFIG_MAKEFILE(dlls/windows.globalization)
@@ -3661,7 +3670,7 @@ dnl Rules for generated source files
 
 WINE_APPEND_RULE(
 [dlls/ntdll/unix/version.c: dummy
-	@version=\`(echo \"wine-7.17.r0.g6d46b1e1\") | sed -n -e '\$\$s/\(.*\)/const char wine_build[[]] = \"\\1  ( TkG Staging Esync Fsync )\";/p'\` && (echo \$\$version | cmp -s - \$[@]) || echo \$\$version >\$[@] || (rm -f \$[@] && exit 1)
+	@version=\`(echo \"wine-7.18.r0.gfe476e72\") | sed -n -e '\$\$s/\(.*\)/const char wine_build[[]] = \"\\1  ( TkG Staging Esync Fsync )\";/p'\` && (echo \$\$version | cmp -s - \$[@]) || echo \$\$version >\$[@] || (rm -f \$[@] && exit 1)
 programs/winetest/build.rc: dummy
 	@build=\"STRINGTABLE { 1 \\\"\`GIT_DIR=${wine_srcdir}.git git rev-parse HEAD 2>/dev/null\`\\\" }\" && (echo \$\$build | cmp -s - \$[@]) || echo \$\$build >\$[@] || (rm -f \$[@] && exit 1)
 programs/winetest/build.nfo:

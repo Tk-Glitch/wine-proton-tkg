@@ -566,6 +566,7 @@ SOURCES = \
 	ntdef.h \
 	ntdsapi.h \
 	ntgdi.h \
+	ntifs.h \
 	ntlsa.h \
 	ntquery.h \
 	ntsecapi.h \
@@ -814,9 +815,11 @@ SOURCES = \
 	windows.media.speechsynthesis.idl \
 	windows.networking.idl \
 	windows.networking.connectivity.idl \
+	windows.security.cryptography.idl \
 	windows.storage.streams.idl \
 	windows.system.idl \
 	windows.system.power.idl \
+	windows.system.threading.idl \
 	windows.system.userprofile.idl \
 	windows.ui.idl \
 	windowscontracts.idl \
@@ -900,6 +903,7 @@ SOURCES = \
 	wintabx.h \
 	winternl.h \
 	wintrust.h \
+	winusb.h \
 	winuser.h \
 	winuser.rh \
 	winver.h \

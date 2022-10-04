@@ -1388,6 +1388,7 @@ enum server_fd_type
 {
     FD_TYPE_INVALID,  /* invalid file (no associated fd) */
     FD_TYPE_FILE,     /* regular file */
+    FD_TYPE_SYMLINK,  /* symbolic link */
     FD_TYPE_DIR,      /* directory */
     FD_TYPE_SOCKET,   /* socket */
     FD_TYPE_SERIAL,   /* serial port */
