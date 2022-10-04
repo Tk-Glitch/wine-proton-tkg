@@ -1,15 +1,18 @@
-# Last proton_dist configuration - jeu. 21 juil. 2022 16:39:00 CEST :
+# Last proton_dist configuration - mar. 04 oct. 2022 15:32:50 CEST :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 7.13.r0.gdfff9217746
-Using wine-staging patchset (version 7.13.r0.gcd8ca4d7)
+Wine (plain) version: 7.14.r0.gc86955d3806
+Using wine-staging patchset (version 7.14.r0.g1d21e2b6)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
 
+Done applying backports hotfixes (if any) - list available in prepare.log
 Done applying reverting hotfixes (if any) - list available in prepare.log
 
+Applied hotfix win32u_reverts31.earlystagingpatch
+Applied hotfix win32u_reverts30.earlystagingpatch
 Applied hotfix win32u_reverts29.earlystagingpatch
 Applied hotfix win32u_reverts28.earlystagingpatch
 Applied hotfix win32u_reverts27.earlystagingpatch
@@ -42,14 +45,14 @@ Applied hotfix win32u_reverts7.earlystagingpatch
 Applied hotfix commit-de2f0fe.earlystagingpatch
 Applied hotfix win32u_reverts6.earlystagingpatch
 Applied reverting hotfix win32u_reverts5-2.mystagingrevert
-Applied hotfix commit-155e98e.mystagingpatch
+Applied hotfix commit-155e98e-2.mystagingpatch
 Applied hotfix protonify_stg_syscall_emu-009.mystagingpatch
 Applied reverting hotfix d4259ac8e93.myearlyrevert
 Applied hotfix fshack-84bed15-a3ebf88-monolith-reverts-2.myearlypatch
 steam.patch -- ( Applied steam crossover hack )
 CSMT-toggle.patch -- ( Applied CSMT toggle logic patch )
 
-Staging overrides, if any: -W user32-alttab-focus -W stdole32.tlb-SLTG_Typelib -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W user32-alttab-focus -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW -W winex11-MWM_Decorations -W winex11-key_translation
+Staging overrides, if any: -W xactengine3_7-callbacks -W ntdll-Serial_Port_Detection -W user32-alttab-focus -W stdole32.tlb-SLTG_Typelib -W ntdll-Junction_Points -W server-File_Permissions -W server-Stored_ACLs -W user32-alttab-focus -W winex11-WM_WINDOWPOSCHANGING -W winex11-_NET_ACTIVE_WINDOW -W winex11-MWM_Decorations -W winex11-key_translation
 
 use_clock_monotonic.patch -- ( Applied clock_monotonic patch )
 assettocorsa_hud_perf-proton.patch -- ( Applied Assetto Corsa HUD performance fix (proton edition) )
@@ -68,7 +71,7 @@ proton-tabtip.patch -- ( Enable Proton's SteamDeck additions )
 rdr2.patch -- ( Enable Proton's RDR2 fixes from Paul Gofman )
 quake_champions_fix.patch -- ( Enable Proton's Quake Champions fixes from Paul Gofman )
 proton-cpu-topology-overrides.patch -- ( Enable Proton's CPU topology override support )
-proton-vr-fshack.patch -- ( Enable Proton vr-related wined3d additions )
+proton-vr-fshack-7d20333.patch -- ( Enable Proton vr-related wined3d additions )
 msvcrt_nativebuiltin.patch -- ( Enforce msvcrt Dlls to native then builtin (from Proton) )
 josh-flat-theme.patch -- ( Add Josh's better-theme )
 proton-win10-default-staging.patch -- ( Enforce win10 as default wine version (staging) )
@@ -77,6 +80,7 @@ proton_battleye.patch -- ( Add support for Proton's Battleye runtime )
 proton-eac_bridge.patch -- ( Add support for Proton's EAC bridge )
 
 Applied reverting hotfix proton-fshack-removeminimizestuff.myrevert
+Applied hotfix unicode.mypatch
 Applied hotfix remove_hooks_that_time_out-legacy.mypatch
 Applied hotfix user32.implement_rudimentary_EnableMouseInPointer_support.mypatch
 Applied hotfix winex11.drv_Add_a_GPU_for_each_Vulkan_device_that_was_not_tied_to_an_XRandR_provider-legacy.mypatch
@@ -88,7 +92,6 @@ Applied hotfix ef6e33f.mypatch
 Applied hotfix 0001-proton-bcrypt_rdr2_fixes5.mypatch
 Applied hotfix 0002-bcrypt-Add-support-for-calculating-secret-ecc-keys.mypatch
 Applied hotfix a608ef1.mypatch
-Applied hotfix larger_def_heap.mypatch
 Applied your own patch 0001-ntdll-Use-kernel-soft-dirty-flags-for-write-watches-.mypatch
 Applied your own patch FinalFantasyXVHack.mypatch
 Applied your own patch amd_fsr_fshack-alternative.mypatch
