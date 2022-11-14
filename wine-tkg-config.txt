@@ -1,9 +1,9 @@
-# Last proton_dist configuration - lun. 14 nov. 2022 01:01:39 CET :
+# Last proton_dist configuration - lun. 14 nov. 2022 01:06:27 CET :
 
 External configuration file ~/.config/frogminer/proton-tkg.cfg used
 
-Wine (plain) version: 7.20.r0.ge43cb422502
-Using wine-staging patchset (version 7.20.r0.gacb05462)
+Wine (plain) version: 7.21.r0.g053ee2d23d8
+Using wine-staging patchset (version 7.21.r0.gd935a41e)
 
 Disabled the local Esync patchset to use Staging impl instead.
 Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
@@ -11,7 +11,6 @@ Not using vkd3d native library for d3d12 translation (allows using vkd3d-proton)
 Done applying backports hotfixes (if any) - list available in prepare.log
 Done applying reverting hotfixes (if any) - list available in prepare.log
 
-Applied hotfix protonify_stg_syscall_emu-009.mystagingpatch
 Applied reverting hotfix d4259ac8e93.myearlyrevert
 steam.patch -- ( Applied steam crossover hack )
 CSMT-toggle.patch -- ( Applied CSMT toggle logic patch )
@@ -27,19 +26,17 @@ fsync_futex_waitv.patch -- ( Replace all fsync interfaces with futex_waitv )
 childwindow-proton.patch -- ( Applied child window for vk patch )
 OPWR-proton.patch -- ( Applied other process window Vulkan rendering patchset )
 LAA-unix-staging.patch -- ( Applied large address aware override support )
-proton-tkg-steamclient-swap-4b65a70.patch -- ( Applied steamclient substitution hack )
+proton-tkg-steamclient-swap.patch -- ( Applied steamclient substitution hack )
 
 proton-tkg-staging.patch -- ( Using Steam-specific Proton-tkg patches (staging) 2/3 )
 proton-steam-bits.patch -- ( Using Steam-specific Proton-tkg patches (staging) 3/3 )
 proton-tkg-additions.patch -- ( Using additional Proton-tkg patches )
 proton-tabtip.patch -- ( Enable Proton's SteamDeck additions )
-rdr2.patch -- ( Enable Proton's RDR2 fixes from Paul Gofman )
-quake_champions_fix.patch -- ( Enable Proton's Quake Champions fixes from Paul Gofman )
 proton-cpu-topology-overrides.patch -- ( Enable Proton's CPU topology override support )
 proton-vr.patch -- ( Enable Proton vr-related wined3d additions )
 msvcrt_nativebuiltin.patch -- ( Enforce msvcrt Dlls to native then builtin (from Proton) )
 josh-flat-theme.patch -- ( Add Josh's better-theme )
-proton-win10-default-staging.patch -- ( Enforce win10 as default wine version (staging) )
+proton-win10-default.patch -- ( Enforce win10 as default wine version )
 dxvk_config_dxgi_support.patch -- ( Add support for dxvk_config library to Wine's dxgi )
 proton_battleye.patch -- ( Add support for Proton's Battleye runtime )
 proton-eac_bridge.patch -- ( Add support for Proton's EAC bridge )
@@ -55,7 +52,6 @@ Applied hotfix 0001-proton-bcrypt_rdr2_fixes5.mypatch
 Applied hotfix 0002-bcrypt-Add-support-for-calculating-secret-ecc-keys.mypatch
 Applied hotfix a608ef1.mypatch
 Applied hotfix 1148-staging.mypatch
-Applied hotfix 1152.mypatch
 Applied your own patch 0001-ntdll-Use-kernel-soft-dirty-flags-for-write-watches-.mypatch
 Applied your own patch FinalFantasyXVHack.mypatch
 Applied your own patch amdags-proton.mypatch

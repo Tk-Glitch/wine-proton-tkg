@@ -21,26 +21,40 @@
 #ifndef __NTDLL_UNIXLIB_H
 #define __NTDLL_UNIXLIB_H
 
-#include "wine/debug.h"
+#include "wine/unixlib.h"
 
 struct _DISPATCHER_CONTEXT;
 
+struct load_so_dll_params
+{
+    UNICODE_STRING              nt_name;
+    void                      **module;
+};
+
+struct unwind_builtin_dll_params
+{
+    ULONG                       type;
+    struct _DISPATCHER_CONTEXT *dispatch;
+    CONTEXT                    *context;
+};
+
+enum ntdll_unix_funcs
+{
+    unix_load_so_dll,
+    unix_init_builtin_dll,
+    unix_unwind_builtin_dll,
+    unix_system_time_precise,
+};
+
+extern unixlib_handle_t ntdll_unix_handle;
+
+#define NTDLL_UNIX_CALL( func, params ) __wine_unix_call( ntdll_unix_handle, unix_ ## func, params )
+
 /* increment this when you change the function table */
-#define NTDLL_UNIXLIB_VERSION 134
+#define NTDLL_UNIXLIB_VERSION 139
 
 struct unix_funcs
 {
-    /* loader functions */
-    NTSTATUS      (CDECL *load_so_dll)( UNICODE_STRING *nt_name, void **module );
-    void          (CDECL *init_builtin_dll)( void *module );
-    NTSTATUS      (CDECL *unwind_builtin_dll)( ULONG type, struct _DISPATCHER_CONTEXT *dispatch,
-                                               CONTEXT *context );
-    /* other Win32 API functions */
-    LONGLONG      (WINAPI *RtlGetSystemTimePrecise)(void);
-#ifdef __aarch64__
-    TEB *         (WINAPI *NtCurrentTeb)(void);
-#endif
-
     /* steamclient HACK */
     void          (CDECL *steamclient_setup_trampolines)( HMODULE src_mod, HMODULE tgt_mod );
     void          (CDECL *set_unix_env)( const char *var, const char *val );

@@ -1695,7 +1695,7 @@
 @ cdecl __wine_set_unix_funcs(long ptr)
 @ stdcall __wine_ctrl_routine(ptr)
 @ extern __wine_syscall_dispatcher
-@ extern -arch=i386 __wine_ldt_copy
+@ extern -arch=arm64 __wine_current_teb
 @ cdecl __wine_set_unix_env(ptr ptr)
 
 # Debugging
