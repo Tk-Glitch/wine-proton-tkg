@@ -67,7 +67,6 @@ AddReg=\
     MCI,\
     Misc,\
     OLE,\
-    Packages,\
     Printing,\
     Services, \
     SessionMgr,\
@@ -92,7 +91,7 @@ AddReg=\
     MCI,\
     Misc,\
     OLE,\
-    Packages.ntamd64,\
+    Packages,\
     Printing,\
     Services, \
     SessionMgr,\
@@ -121,7 +120,7 @@ AddReg=\
     MCI,\
     Misc,\
     OLE,\
-    Packages.ntarm64,\
+    Packages.ntamd64,\
     Printing,\
     Services, \
     SessionMgr,\
@@ -149,6 +148,7 @@ AddReg=\
     MCI,\
     Misc,\
     OLE,\
+    Packages.ntarm64,\
     Printing,\
     Services, \
     SessionMgr,\
@@ -2958,9 +2958,6 @@ HKCU,Software\Wine\DllOverrides,"atiadlxx",,"disabled"
 
 [NVIDIANGX]
 HKLM,Software\NVIDIA Corporation\Global\NGXCore,"FullPath",,"C:\Windows\System32"
-
-[ProtonOverrides]
-HKLM,Software\Khronos\OpenXR\1,"ActiveRuntime",,"C:\openxr\wineopenxr64.json"
 
 [NlsFiles]
 c_037.nls

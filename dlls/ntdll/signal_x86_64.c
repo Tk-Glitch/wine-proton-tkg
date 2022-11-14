@@ -428,8 +428,6 @@ static NTSTATUS call_stack_handlers( EXCEPTION_RECORD *rec, CONTEXT *orig_contex
     UNWIND_HISTORY_TABLE table;
     DISPATCHER_CONTEXT dispatch;
     CONTEXT context;
-    MEMORY_BASIC_INFORMATION wine_frame_stack_info, current_stack_info;
-    int is_teb_frame_in_current_stack = 1;
     NTSTATUS status;
 
     context = *orig_context;
@@ -438,13 +436,6 @@ static NTSTATUS call_stack_handlers( EXCEPTION_RECORD *rec, CONTEXT *orig_contex
     dispatch.TargetIp      = 0;
     dispatch.ContextRecord = &context;
     dispatch.HistoryTable  = &table;
-
-    if ( !(NtQueryVirtualMemory(NtCurrentProcess(), teb_frame, MemoryBasicInformation, &wine_frame_stack_info, sizeof(MEMORY_BASIC_INFORMATION), NULL)) &&
-         !(NtQueryVirtualMemory(NtCurrentProcess(), (PVOID)context.Rsp, MemoryBasicInformation, &current_stack_info, sizeof(MEMORY_BASIC_INFORMATION), NULL)))
-    {
-        is_teb_frame_in_current_stack = wine_frame_stack_info.AllocationBase == current_stack_info.AllocationBase;
-    }
-
     for (;;)
     {
         status = virtual_unwind( UNW_FLAG_EHANDLER, &dispatch, &context );
@@ -490,7 +481,7 @@ static NTSTATUS call_stack_handlers( EXCEPTION_RECORD *rec, CONTEXT *orig_contex
             }
         }
         /* hack: call wine handlers registered in the tib list */
-        else if (is_teb_frame_in_current_stack) while ((ULONG64)teb_frame < context.Rsp)
+        else while ((ULONG64)teb_frame < context.Rsp)
         {
             TRACE_(seh)( "found wine frame %p rsp %p handler %p\n",
                          teb_frame, (void *)context.Rsp, teb_frame->Handler );
@@ -680,12 +671,7 @@ __ASM_GLOBAL_FUNC( KiUserApcDispatcher,
                    "int3")
 
 
-/*******************************************************************
- *		KiUserCallbackDispatcher (NTDLL.@)
- *
- * FIXME: not binary compatible
- */
-void WINAPI KiUserCallbackDispatcher( ULONG id, void *args, ULONG len )
+void WINAPI user_callback_dispatcher( ULONG id, void *args, ULONG len )
 {
     NTSTATUS status;
 
@@ -703,6 +689,28 @@ void WINAPI KiUserCallbackDispatcher( ULONG id, void *args, ULONG len )
 
     RtlRaiseStatus( status );
 }
+
+/*******************************************************************
+ *		KiUserCallbackDispatcher (NTDLL.@)
+ *
+ * FIXME: not binary compatible
+ */
+#ifdef __x86_64__
+__ASM_GLOBAL_FUNC( KiUserCallbackDispatcher,
+                  ".byte 0x0f, 0x1f, 0x44, 0x00, 0x00\n\t" /* Overwatch 2 replaces the first 5 bytes with a jump */
+                  "movq 0x28(%rsp), %rdx\n\t"
+                  "movl 0x30(%rsp), %ecx\n\t"
+                  "movl 0x34(%rsp), %r8d\n\t"
+                  "andq $0xFFFFFFFFFFFFFFF0, %rsp\n\t"
+                  __ASM_SEH(".seh_endprologue\n\t")
+                  "call " __ASM_NAME("user_callback_dispatcher") "\n\t"
+                  "int3")
+#else
+void WINAPI DECLSPEC_HOTPATCH KiUserCallbackDispatcher( ULONG id, void *args, ULONG len )
+{
+    return user_callback_dispatcher( id, args, len );
+}
+#endif
 
 
 static ULONG64 get_int_reg( CONTEXT *context, int reg )
