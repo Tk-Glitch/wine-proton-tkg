@@ -382,10 +382,10 @@ static const BOOL use_preloader = TRUE;
 static const BOOL use_preloader = FALSE;
 #endif
 
-static char *argv0;
 static const char *bin_dir;
 static const char *dll_dir;
 static const char *ntdll_dir;
+static const char *wineloader;
 static SIZE_T dll_path_maxlen;
 static int *p___wine_main_argc;
 static char ***p___wine_main_argv;
@@ -664,8 +664,10 @@ static void set_config_dir(void)
 static void init_paths( char *argv[] )
 {
     Dl_info info;
+    char *basename, *env;
 
-    argv0 = strdup( argv[0] );
+    if ((basename = strrchr( argv[0], '/' ))) basename++;
+    else basename = argv[0];
 
     if (!dladdr( init_paths, &info ) || !(ntdll_dir = realpath_dirname( info.dli_fname )))
         fatal_error( "cannot get path to ntdll.so\n" );
@@ -685,11 +687,18 @@ static void init_paths( char *argv[] )
             free( path );
         }
 #else
-        bin_dir = realpath_dirname( argv0 );
+        bin_dir = realpath_dirname( argv[0] );
 #endif
         if (!bin_dir) bin_dir = build_path( dll_dir, DLL_TO_BINDIR );
         data_dir = build_path( bin_dir, BIN_TO_DATADIR );
+        wineloader = build_path( bin_dir, basename );
     }
+    else wineloader = build_path( build_path( build_dir, "loader" ), basename );
+
+    env = malloc( sizeof("WINELOADER=") + strlen(wineloader) );
+    strcpy( env, "WINELOADER=" );
+    strcat( env, wineloader );
+    putenv( env );
 
     set_dll_path();
     set_system_dll_path();
@@ -728,35 +737,27 @@ static void preloader_exec( char **argv )
     execv( argv[1], argv + 1 );
 }
 
-static NTSTATUS loader_exec( const char *loader, char **argv, WORD machine )
+/* exec the appropriate wine loader for the specified machine */
+static NTSTATUS loader_exec( char **argv, WORD machine )
 {
-    char *p, *path;
-
-    if (build_dir)
+    if (machine != current_machine)
     {
-        argv[1] = build_path( build_dir, (machine == IMAGE_FILE_MACHINE_AMD64) ? "loader/wine64" : "loader/wine" );
-        preloader_exec( argv );
-        return STATUS_INVALID_IMAGE_FORMAT;
-    }
-
-    if ((p = strrchr( loader, '/' ))) loader = p + 1;
-
-    argv[1] = build_path( bin_dir, loader );
-    preloader_exec( argv );
-
-    argv[1] = getenv( "WINELOADER" );
-    if (argv[1]) preloader_exec( argv );
-
-    if ((path = getenv( "PATH" )))
-    {
-        for (p = strtok( strdup( path ), ":" ); p; p = strtok( NULL, ":" ))
+        if (machine == IMAGE_FILE_MACHINE_AMD64)  /* try the 64-bit loader */
         {
-            argv[1] = build_path( p, loader );
-            preloader_exec( argv );
+            size_t len = strlen(wineloader);
+
+            if (len <= 2 || strcmp( wineloader + len - 2, "64" ))
+            {
+                argv[1] = malloc( len + 3 );
+                strcpy( argv[1], wineloader );
+                strcat( argv[1], "64" );
+                preloader_exec( argv );
+            }
         }
+        else if ((argv[1] = remove_tail( wineloader, "64" ))) preloader_exec( argv );
     }
 
-    argv[1] = build_path( BINDIR, loader );
+    argv[1] = strdup( wineloader );
     preloader_exec( argv );
     return STATUS_INVALID_IMAGE_FORMAT;
 }
@@ -772,42 +773,11 @@ NTSTATUS exec_wineloader( char **argv, int socketfd, const pe_image_info_t *pe_i
     WORD machine = pe_info->machine;
     ULONGLONG res_start = pe_info->base;
     ULONGLONG res_end = pe_info->base + pe_info->map_size;
-    const char *loader = argv0;
-    const char *loader_env = getenv( "WINELOADER" );
     const char *ld_preload = getenv( "LD_PRELOAD" );
     char preloader_reserve[64], socket_env[64];
-    BOOL is_child_64bit;
 
     if (pe_info->image_flags & IMAGE_FLAGS_WineFakeDll) res_start = res_end = 0;
     if (pe_info->image_flags & IMAGE_FLAGS_ComPlusNativeReady) machine = native_machine;
-
-    is_child_64bit = is_machine_64bit( machine );
-
-    if (!is_win64 ^ !is_child_64bit)
-    {
-        /* remap WINELOADER to the alternate 32/64-bit version if necessary */
-        if (loader_env)
-        {
-            int len = strlen( loader_env );
-            char *env = malloc( sizeof("WINELOADER=") + len + 2 );
-
-            if (!env) return STATUS_NO_MEMORY;
-            strcpy( env, "WINELOADER=" );
-            strcat( env, loader_env );
-            if (is_child_64bit)
-            {
-                strcat( env, "64" );
-            }
-            else
-            {
-                len += sizeof("WINELOADER=") - 1;
-                if (!strcmp( env + len - 2, "64" )) env[len - 2] = 0;
-            }
-            loader = env;
-            putenv( env );
-        }
-        else loader = is_child_64bit ? "wine64" : "wine";
-    }
 
     /* HACK: Unset LD_PRELOAD before executing explorer.exe to disable buggy gameoverlayrenderer.so */
     if (ld_preload && argv[2] && !strcmp( argv[2], "C:\\windows\\system32\\explorer.exe" ) &&
@@ -843,12 +813,12 @@ NTSTATUS exec_wineloader( char **argv, int socketfd, const pe_image_info_t *pe_i
 
     sprintf( socket_env, "WINESERVERSOCKET=%u", socketfd );
     sprintf( preloader_reserve, "WINEPRELOADRESERVE=%x%08x-%x%08x",
-             (ULONG)(res_start >> 32), (ULONG)res_start, (ULONG)(res_end >> 32), (ULONG)res_end );
+             (UINT)(res_start >> 32), (UINT)res_start, (UINT)(res_end >> 32), (UINT)res_end );
 
     putenv( preloader_reserve );
     putenv( socket_env );
 
-    return loader_exec( loader, argv, machine );
+    return loader_exec( argv, machine );
 }
 
 
@@ -1893,7 +1863,7 @@ NTSTATUS load_main_exe( const WCHAR *dos_name, const char *unix_name, const WCHA
     UNICODE_STRING nt_name;
     WCHAR *tmp = NULL;
     BOOL contains_path;
-    NTSTATUS status;
+    unsigned int status;
     SIZE_T size;
     struct stat st;
     WORD machine;
@@ -1952,7 +1922,7 @@ NTSTATUS load_start_exe( WCHAR **image, void **module )
 {
     static const WCHAR startW[] = {'s','t','a','r','t','.','e','x','e',0};
     UNICODE_STRING nt_name;
-    NTSTATUS status;
+    unsigned int status;
     SIZE_T size;
 
     *image = malloc( sizeof("\\??\\C:\\windows\\system32\\start.exe") * sizeof(WCHAR) );
@@ -2029,7 +1999,7 @@ static NTSTATUS init_builtin_dll( void *module )
         /* On older FreeBSD versions, l_addr was the absolute load address, now it's the relocation offset. */
         if (offsetof(struct link_map, l_addr) == 0)
             if (!get_relocbase(map->l_addr, &relocbase))
-                return;
+                return STATUS_UNSUCCESSFUL;
 #endif
         switch (dyn->d_tag)
         {
@@ -2059,7 +2029,7 @@ static void load_ntdll(void)
     static WCHAR path[] = {'\\','?','?','\\','C',':','\\','w','i','n','d','o','w','s','\\',
                            's','y','s','t','e','m','3','2','\\','n','t','d','l','l','.','d','l','l',0};
     const char *pe_dir = get_pe_dir( current_machine );
-    NTSTATUS status;
+    unsigned int status;
     SECTION_IMAGE_INFORMATION info;
     OBJECT_ATTRIBUTES attr;
     UNICODE_STRING str;
@@ -2101,7 +2071,7 @@ static void load_apiset_dll(void)
     API_SET_NAMESPACE *map;
     OBJECT_ATTRIBUTES attr;
     UNICODE_STRING str;
-    NTSTATUS status;
+    unsigned int status;
     HANDLE handle, mapping;
     SIZE_T size;
     char *name;
@@ -2167,7 +2137,7 @@ static void load_wow64_ntdll( USHORT machine )
     SECTION_IMAGE_INFORMATION info;
     UNICODE_STRING nt_name;
     void *module;
-    NTSTATUS status;
+    unsigned int status;
     SIZE_T size;
     WCHAR *path = malloc( sizeof("\\??\\C:\\windows\\system32\\ntdll.dll") * sizeof(WCHAR) );
 
@@ -2724,7 +2694,7 @@ void __wine_main( int argc, char *argv[], char *envp[] )
 
             memcpy( new_argv + 1, argv, (argc + 1) * sizeof(*argv) );
             putenv( noexec );
-            loader_exec( argv0, new_argv, current_machine );
+            loader_exec( new_argv, current_machine );
             fatal_error( "could not exec the wine loader\n" );
         }
     }
