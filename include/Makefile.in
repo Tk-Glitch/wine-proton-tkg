@@ -475,6 +475,7 @@ SOURCES = \
 	msvcrt/conio.h \
 	msvcrt/corecrt.h \
 	msvcrt/corecrt_io.h \
+	msvcrt/corecrt_malloc.h \
 	msvcrt/corecrt_startup.h \
 	msvcrt/corecrt_stdio_config.h \
 	msvcrt/corecrt_wctype.h \
@@ -687,6 +688,7 @@ SOURCES = \
 	shlobj.h \
 	shlwapi.h \
 	shobjidl.idl \
+	shobjidl_core.idl \
 	shtypes.idl \
 	sipbase.h \
 	slerror.h \
@@ -773,6 +775,7 @@ SOURCES = \
 	wbemdisp.idl \
 	wbemprov.idl \
 	wct.h \
+	wdbgexts.h \
 	weakreference.idl \
 	webservices.h \
 	werapi.h \
@@ -920,6 +923,7 @@ SOURCES = \
 	wmsdkidl.idl \
 	wmsecure.idl \
 	wnaspi32.h \
+	wofapi.h \
 	wownt16.h \
 	wownt32.h \
 	wpcapi.idl \
